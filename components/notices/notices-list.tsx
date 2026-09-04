@@ -74,7 +74,9 @@ export function NoticesList({
           {notices.map((notice) => (
             <TableRow key={notice.id}>
               <TableCell>
-                <span className="font-medium">{notice.title}</span>
+                <Link href={`/notices/${notice.id}`} className="font-medium hover:underline">
+                  {notice.title}
+                </Link>
                 {notice.notice_type && (
                   <Badge variant="outline" className="ml-2 text-xs">
                     {notice.notice_type.split('—')[0].trim()}
