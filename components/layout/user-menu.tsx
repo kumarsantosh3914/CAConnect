@@ -5,6 +5,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuGroup,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
@@ -28,10 +29,17 @@ export function UserMenu({ email, firmName }: { email: string; firmName: string 
         }
       />
       <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuLabel className="font-normal">
-          <p className="text-sm font-medium">{firmName || 'Your firm'}</p>
-          <p className="truncate text-xs text-muted-foreground">{email}</p>
-        </DropdownMenuLabel>
+        {/*
+          Base UI's GroupLabel throws "MenuGroupContext is missing" unless it
+          sits inside a Group. Without this wrapper, opening the menu crashes
+          the whole page — which it did, on every route, for every user.
+        */}
+        <DropdownMenuGroup>
+          <DropdownMenuLabel className="font-normal">
+            <p className="text-sm font-medium">{firmName || 'Your firm'}</p>
+            <p className="truncate text-xs text-muted-foreground">{email}</p>
+          </DropdownMenuLabel>
+        </DropdownMenuGroup>
         <DropdownMenuSeparator />
         {/* A POST, not a link — signing out must not be reachable by prefetch. */}
         <form action="/auth/signout" method="post">
