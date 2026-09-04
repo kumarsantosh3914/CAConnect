@@ -21,8 +21,9 @@ code.
 Two Definition of Done criteria from the build plan are go-to-market, not
 buildable: 20 CAs actively using it, and 5 saying they would pay.
 
-**Current phase:** V2, team & retention features. See "V2 Roadmap" below for
-what's in scope, what's deferred, and why.
+**Current phase:** V2, team & retention features. Feature 1 (AI Client Email
+Drafter) is done. Next up: the firm/staff data model. See "V2 Roadmap" below
+for what's in scope, what's deferred, and why.
 
 ## What We Are Building
 CAConnect is an AI-powered practice management tool for small Indian CA firms (1-5 people).
@@ -97,11 +98,17 @@ Do not build them until the DoD criteria above are met. Revisit then.
 
 ### The four features, in build order
 
-1. **AI Client Email Drafter** — build first. Near-zero schema risk, reuses
-   `lib/ai/provider.ts` and `lib/ai/openai.ts` unchanged. New: a prompt file
-   under `lib/ai/prompts/`, a `client_emails` table, a UI modeled on
-   `components/notices/notice-drafter.tsx`. Ships fast, no architecture
-   decisions pending.
+1. **AI Client Email Drafter** — DONE (2026-09-04). Live at `/client-emails`,
+   a 5th tab on the client profile, and a nav entry. Four topics
+   (deadline reminder, document follow-up, fee reminder, custom), each
+   pulling verified facts from the existing deadlines/documents/fees queries
+   rather than a blank text box — see `lib/client-emails/context.ts` and
+   `lib/ai/prompts/client-email.ts`. Also generalized `lib/ai/provider.ts`
+   from a notice-only method to a feature-agnostic `streamText()`, and
+   factored the AI rate limit + monthly cap into `lib/ai/guard.ts` /
+   `lib/ai/usage.ts`, shared across notices and client emails so usage
+   cannot be doubled by splitting it across features. RLS and the shared
+   quota both verified live before this shipped.
 
 2. **Firm/staff data model** — the one-way door, built next while there's no
    time pressure from features already sitting on top of it. Confirmed shape:
