@@ -1,32 +1,16 @@
 import Link from 'next/link'
-import { Button } from '@/components/ui/button'
 import { Logo } from '@/components/brand/logo'
+import { MarketingNav } from '@/components/layout/marketing-nav'
 
 export default function MarketingLayout({ children }: LayoutProps<'/'>) {
   return (
     <div className="flex min-h-svh flex-col">
-      <header className="sticky top-0 z-10 border-b bg-background/85 backdrop-blur">
+      <header className="sticky top-0 z-20 border-b bg-background/85 backdrop-blur">
         <div className="mx-auto flex h-14 w-full max-w-5xl items-center justify-between px-4">
           <Link href="/">
             <Logo />
           </Link>
-          <nav className="flex items-center gap-1">
-            <Button variant="ghost" size="sm" nativeButton={false} render={<Link href="/find-a-ca" />}>
-              Find a CA
-            </Button>
-            <Button variant="ghost" size="sm" nativeButton={false} render={<Link href="/how-it-works" />}>
-              How it works
-            </Button>
-            <Button variant="ghost" size="sm" nativeButton={false} render={<Link href="/pricing" />}>
-              Pricing
-            </Button>
-            <Button variant="ghost" size="sm" nativeButton={false} render={<Link href="/login" />}>
-              Log in
-            </Button>
-            <Button size="sm" nativeButton={false} render={<Link href="/signup" />}>
-              Start free
-            </Button>
-          </nav>
+          <MarketingNav />
         </div>
       </header>
 
