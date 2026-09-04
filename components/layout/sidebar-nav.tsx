@@ -6,6 +6,7 @@ import {
   CalendarClock,
   FileText,
   LayoutDashboard,
+  Mail,
   Receipt,
   Scale,
   Users,
@@ -19,6 +20,7 @@ const NAV_ITEMS = [
   { href: '/documents', label: 'Documents', icon: FileText },
   { href: '/fees', label: 'Fees', icon: Receipt },
   { href: '/notices', label: 'IT Notices', icon: Scale },
+  { href: '/client-emails', label: 'Client Emails', icon: Mail },
 ]
 
 export function SidebarNav() {

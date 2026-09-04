@@ -44,6 +44,7 @@ export type FeeStatus = 'draft' | 'invoiced' | 'paid'
 export type DocumentRequestStatus = 'open' | 'completed' | 'expired'
 export type DocumentUploader = 'ca' | 'client'
 export type NoticeStatus = 'draft' | 'reviewed' | 'sent'
+export type ClientEmailTopic = 'deadline_reminder' | 'document_followup' | 'fee_reminder' | 'custom'
 export type NoticeSource = 'paste' | 'pdf'
 export type PlanTier = 'starter' | 'solo' | 'pro' | 'team'
 
@@ -185,6 +186,23 @@ export type NoticeRow = {
   updated_at: string
 }
 
+export type ClientEmailRow = {
+  id: string
+  user_id: string
+  client_id: string
+  topic: ClientEmailTopic
+  subject_id: string | null
+  notes: string | null
+  draft_subject: string | null
+  edited_subject: string | null
+  draft_body: string | null
+  edited_body: string | null
+  model: string | null
+  status: NoticeStatus
+  created_at: string
+  updated_at: string
+}
+
 export type EmailLogRow = {
   id: string
   user_id: string
@@ -270,6 +288,12 @@ export type Database = {
         Update: Partial<NoticeRow>
         Relationships: ClientFk
       }
+      client_emails: {
+        Row: ClientEmailRow
+        Insert: Insertable<ClientEmailRow, 'user_id' | 'client_id' | 'topic'>
+        Update: Partial<ClientEmailRow>
+        Relationships: ClientFk
+      }
       email_log: {
         Row: EmailLogRow
         Insert: Insertable<EmailLogRow, 'user_id' | 'kind' | 'subject_id' | 'recipient'>
@@ -288,6 +312,7 @@ export type Database = {
       document_uploader: DocumentUploader
       notice_status: NoticeStatus
       notice_source: NoticeSource
+      client_email_topic: ClientEmailTopic
       plan_tier: PlanTier
     }
     CompositeTypes: Record<never, never>

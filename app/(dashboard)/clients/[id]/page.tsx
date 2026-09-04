@@ -7,6 +7,8 @@ import { bucketDeadlines, listDeadlines } from '@/lib/deadlines/queries'
 import { listDocumentRequests, listDocuments } from '@/lib/documents/queries'
 import { listFees } from '@/lib/fees/queries'
 import { listNotices } from '@/lib/notices/queries'
+import { listClientEmails } from '@/lib/client-emails/queries'
+import { ClientEmailList } from '@/components/client-emails/email-list'
 import { FeesView } from '@/components/fees/fees-view'
 import { NoticesList } from '@/components/notices/notices-list'
 import { createClient as createSupabaseClient } from '@/lib/supabase/server'
@@ -47,12 +49,13 @@ export default async function ClientProfilePage(props: PageProps<'/clients/[id]'
 
   const user = await requireUser()
   const supabase = await createSupabaseClient()
-  const [deadlines, requests, documents, fees, notices, { data: profile }] = await Promise.all([
+  const [deadlines, requests, documents, fees, notices, emails, { data: profile }] = await Promise.all([
     listDeadlines({ clientId: id, includeCompleted: true }),
     listDocumentRequests(id),
     listDocuments(id),
     listFees({ clientId: id }),
     listNotices(id),
+    listClientEmails(id),
     supabase.from('profiles').select('firm_name').eq('id', user.id).maybeSingle(),
   ])
 
@@ -144,6 +147,7 @@ export default async function ClientProfilePage(props: PageProps<'/clients/[id]'
             <TabsTrigger value="documents">Documents</TabsTrigger>
             <TabsTrigger value="fees">Fees</TabsTrigger>
             <TabsTrigger value="notices">Notices</TabsTrigger>
+            <TabsTrigger value="emails">Emails</TabsTrigger>
           </TabsList>
 
           <TabsContent value="deadlines">
@@ -180,6 +184,14 @@ export default async function ClientProfilePage(props: PageProps<'/clients/[id]'
           </TabsContent>
           <TabsContent value="notices">
             <NoticesList notices={notices} showClient={false} />
+          </TabsContent>
+          <TabsContent value="emails" className="space-y-4">
+            <div className="flex justify-end">
+              <Button nativeButton={false} render={<Link href={`/client-emails/new?client=${client.id}`} />}>
+                Draft an email
+              </Button>
+            </div>
+            <ClientEmailList emails={emails} showClient={false} />
           </TabsContent>
         </Tabs>
       </div>

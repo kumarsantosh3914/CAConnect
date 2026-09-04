@@ -1,20 +1,16 @@
 import 'server-only'
 import OpenAI from 'openai'
 import { env } from '@/lib/env'
-import { AiError, type AiProvider, type NoticeDraftInput } from './provider'
-import {
-  NOTICE_RESPONSE_SYSTEM_PROMPT,
-  buildNoticeUserPrompt,
-} from './prompts/notice-response'
+import { AiError, type AiProvider, type StreamTextInput } from './provider'
 
 /**
- * The ONLY file that imports the OpenAI SDK.
- *
- * Everything else goes through lib/ai/provider.ts, so switching vendors means
- * writing a sibling of this file and changing one line in the factory.
+ * The ONLY file that imports the OpenAI SDK, and the only file that knows
+ * anything about the Responses API. It has no idea what a "notice" or a
+ * "client email" is — that knowledge lives in lib/ai/prompts/, one file per
+ * feature. Adding a feature never touches this file.
  */
 
-const MAX_OUTPUT_TOKENS = 4000
+const DEFAULT_MAX_OUTPUT_TOKENS = 4000
 
 /** Maps vendor failures onto something a CA can act on, per CLAUDE.md. */
 function toAiError(error: unknown): AiError {
@@ -30,7 +26,7 @@ function toAiError(error: unknown): AiError {
     }
     if (error.status === 400) {
       return new AiError(
-        'That notice could not be processed — it may be too long. Try pasting just the relevant pages.',
+        'That request could not be processed — it may be too long. Try shortening it.',
         false
       )
     }
@@ -51,14 +47,18 @@ export function createOpenAiProvider(): AiProvider {
   return {
     model,
 
-    async *draftNoticeResponse(input: NoticeDraftInput): AsyncIterable<string> {
+    async *streamText({
+      instructions,
+      input,
+      maxOutputTokens = DEFAULT_MAX_OUTPUT_TOKENS,
+    }: StreamTextInput): AsyncIterable<string> {
       let stream
       try {
         stream = await client.responses.create({
           model,
-          instructions: NOTICE_RESPONSE_SYSTEM_PROMPT,
-          input: buildNoticeUserPrompt(input),
-          max_output_tokens: MAX_OUTPUT_TOKENS,
+          instructions,
+          input,
+          max_output_tokens: maxOutputTokens,
           stream: true,
         })
       } catch (error) {

@@ -94,3 +94,31 @@ export async function listDocuments(clientId?: string) {
     request_title: row.document_requests?.title ?? null,
   })) satisfies DocumentSummary[]
 }
+
+export type DocumentRequestItemDetail = {
+  id: string
+  label: string
+  is_required: boolean
+  fulfilled: boolean
+}
+
+/** Item-level detail for one request — RLS-scoped, not the public/admin view. */
+export async function getDocumentRequestItems(
+  requestId: string
+): Promise<DocumentRequestItemDetail[]> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('document_request_items')
+    .select('id,label,is_required,sort_order,fulfilled_document_id')
+    .eq('request_id', requestId)
+    .order('sort_order')
+
+  if (error) throw new Error(`Could not load checklist items: ${error.message}`)
+
+  return (data ?? []).map((item) => ({
+    id: item.id,
+    label: item.label,
+    is_required: item.is_required,
+    fulfilled: item.fulfilled_document_id !== null,
+  }))
+}

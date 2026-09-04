@@ -3,11 +3,14 @@ import { getApiUser } from '@/lib/auth'
 import { createClient } from '@/lib/supabase/server'
 import { getAiProvider, AiError } from '@/lib/ai/provider'
 import { checkAiGuards } from '@/lib/ai/guard'
-import { NOTICE_RESPONSE_SYSTEM_PROMPT, buildNoticeUserPrompt } from '@/lib/ai/prompts/notice-response'
-import { PDF_LIMITS } from '@/lib/notices/pdf'
+import { CLIENT_EMAIL_SYSTEM_PROMPT, buildClientEmailUserPrompt, splitSubjectAndBody } from '@/lib/ai/prompts/client-email'
+import { buildEmailContext } from '@/lib/client-emails/context'
+import type { ClientEmailTopic } from '@/types/database'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
+
+const TOPICS: ClientEmailTopic[] = ['deadline_reminder', 'document_followup', 'fee_reminder', 'custom']
 
 export async function POST(request: NextRequest) {
   // Auth before any work at all, per CLAUDE.md.
@@ -16,25 +19,28 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Your session has expired. Please log in again.' }, { status: 401 })
   }
 
-  let body: { noticeId?: string; noticeText?: string; noticeType?: string; clientId?: string }
+  let body: {
+    emailId?: string
+    clientId?: string
+    topic?: string
+    subjectId?: string
+    notes?: string
+  }
   try {
     body = await request.json()
   } catch {
     return NextResponse.json({ error: 'That request could not be read.' }, { status: 400 })
   }
 
-  const noticeText = (body.noticeText ?? '').trim()
-  if (noticeText.length < PDF_LIMITS.minExtractedChars) {
-    return NextResponse.json(
-      { error: 'There is not enough text here to work from. Paste the full notice.' },
-      { status: 400 }
-    )
+  if (!body.clientId) {
+    return NextResponse.json({ error: 'Pick a client.' }, { status: 400 })
   }
-  if (noticeText.length > PDF_LIMITS.maxChars) {
-    return NextResponse.json(
-      { error: 'That notice is very long. Paste just the pages that raise queries.' },
-      { status: 413 }
-    )
+  if (!body.topic || !TOPICS.includes(body.topic as ClientEmailTopic)) {
+    return NextResponse.json({ error: 'Pick a topic.' }, { status: 400 })
+  }
+  const topic = body.topic as ClientEmailTopic
+  if (topic === 'custom' && !body.notes?.trim()) {
+    return NextResponse.json({ error: 'Describe what this email is about.' }, { status: 400 })
   }
 
   const supabase = await createClient()
@@ -44,14 +50,18 @@ export async function POST(request: NextRequest) {
 
   // Client name is looked up through RLS, so a CA cannot pull another firm's
   // client into their prompt by guessing an id.
-  let clientName: string | null = null
-  if (body.clientId) {
-    const { data } = await supabase
-      .from('clients')
-      .select('name')
-      .eq('id', body.clientId)
-      .maybeSingle()
-    clientName = data?.name ?? null
+  const { data: client } = await supabase
+    .from('clients')
+    .select('name')
+    .eq('id', body.clientId)
+    .maybeSingle()
+  if (!client) {
+    return NextResponse.json({ error: 'That client could not be found.' }, { status: 404 })
+  }
+
+  const context = await buildEmailContext(topic, body.clientId, body.subjectId ?? null)
+  if (!context.ok) {
+    return NextResponse.json({ error: context.error }, { status: 400 })
   }
 
   let provider
@@ -71,13 +81,14 @@ export async function POST(request: NextRequest) {
     async start(controller) {
       try {
         for await (const chunk of provider.streamText({
-          instructions: NOTICE_RESPONSE_SYSTEM_PROMPT,
-          input: buildNoticeUserPrompt({
-            noticeText,
-            noticeType: body.noticeType ?? null,
-            clientName,
+          instructions: CLIENT_EMAIL_SYSTEM_PROMPT,
+          input: buildClientEmailUserPrompt({
+            clientName: client.name,
             firmName: guard.firmName,
+            notes: body.notes ?? null,
+            facts: context.facts,
           }),
+          maxOutputTokens: 1200,
         })) {
           draft += chunk
           controller.enqueue(encoder.encode(chunk))
@@ -85,11 +96,12 @@ export async function POST(request: NextRequest) {
 
         // Persist once complete. A half-written draft is worse than none, so
         // this only runs after the stream finishes cleanly.
-        if (body.noticeId && draft.trim()) {
+        if (body.emailId && draft.trim()) {
+          const { subject, body: emailBody } = splitSubjectAndBody(draft)
           await supabase
-            .from('notices')
-            .update({ draft_response: draft, model: provider.model })
-            .eq('id', body.noticeId)
+            .from('client_emails')
+            .update({ draft_subject: subject, draft_body: emailBody, model: provider.model })
+            .eq('id', body.emailId)
         }
       } catch (error) {
         const message =
