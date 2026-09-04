@@ -2,10 +2,32 @@
 
 # CAConnect — Claude Code Project Context
 
+## Status
+
+V1 is built, deployed, and live at https://www.bevritti.in (Vercel + Supabase,
+ap-south-1). All 5 core features, dashboard, email reminder cron, onboarding,
+marketing pages, Google sign-in, and plan limits are in place. RLS verified
+under attack, 29 unit tests on the deadline engine, a 20-assertion security
+suite for the anonymous upload route (`npm run security-check`).
+
+**Open item — config, not code:** Resend can only send to the account owner's
+own address until a domain is verified at resend.com/domains. Use
+`bevritti.in` (now owned) — e.g. `reminders@bevritti.in` — then set
+`RESEND_FROM_EMAIL` in Vercel. Until this is done, the reminder cron runs,
+fails cleanly on send, and retries the next day rather than marking anything
+as sent. The user will handle this later; do not treat it as a bug to fix in
+code.
+
+Two Definition of Done criteria from the build plan are go-to-market, not
+buildable: 20 CAs actively using it, and 5 saying they would pay.
+
+**Current phase:** V2, team & retention features. See "V2 Roadmap" below for
+what's in scope, what's deferred, and why.
+
 ## What We Are Building
 CAConnect is an AI-powered practice management tool for small Indian CA firms (1-5 people).
-Phase 1 (current): CA-side SaaS only. No marketplace yet.
-Phase 2 (later): Two-sided marketplace where users can find, compare, and book CAs.
+Phase 1 (V1, done): CA-side SaaS only. No marketplace yet.
+Phase 2 (V2, next): Two-sided marketplace where users can find, compare, and book CAs, plus team features for growing firms.
 
 ## The Problem We Solve
 - Small CA firms run their entire practice on WhatsApp and Excel
@@ -48,6 +70,76 @@ Phase 2 (later): Two-sided marketplace where users can find, compare, and book C
 - No multi-user/team features
 - No complex AI features beyond the IT notice drafter
 - No Tally integration
+
+(Multi-user/team features are now IN SCOPE for V2, below — this list describes
+V1 only, which is done.)
+
+## V2 Roadmap — Team & Retention Features (current phase)
+
+Decided 2026-09-04, via `/plan-ceo-review`. Full reasoning in that session;
+summary here so it survives context resets.
+
+**The call:** V2 per the vision doc is "Marketplace + Team Features." We are
+building the TEAM half only right now, not the marketplace half.
+
+**Why:** the vision doc's own roadmap sequences Phase 3 ("Grow Supply," 100
+paying CA firms) before Phase 4 ("Marketplace"). We have zero real external
+CAs yet — both remaining V1 Definition of Done criteria (20 CAs using it, 5
+willing to pay) are still open. Building public profiles, search, booking and
+reviews now means designing a two-sided marketplace with no supply, no
+demand, and nothing real to review or book — every design choice would be a
+guess. The team features below make V1 stickier for the CAs who do join,
+which is the actual prerequisite for the marketplace making sense at all.
+
+**Marketplace features (CA Public Profile, User-Facing Marketplace, Booking
+System, Reviews & Ratings, Fixed Price Packages) are explicitly DEFERRED.**
+Do not build them until the DoD criteria above are met. Revisit then.
+
+### The four features, in build order
+
+1. **AI Client Email Drafter** — build first. Near-zero schema risk, reuses
+   `lib/ai/provider.ts` and `lib/ai/openai.ts` unchanged. New: a prompt file
+   under `lib/ai/prompts/`, a `client_emails` table, a UI modeled on
+   `components/notices/notice-drafter.tsx`. Ships fast, no architecture
+   decisions pending.
+
+2. **Firm/staff data model** — the one-way door, built next while there's no
+   time pressure from features already sitting on top of it. Confirmed shape:
+   a *real multi-user firm*, not lightweight tagging — a second person gets
+   their own login and sees only what they're assigned.
+
+   - New tables: `firms (id, owner_id)`, `firm_members (firm_id, user_id, role)`
+     with `role` an enum (`owner`, `staff`).
+   - Every existing table keeps its `user_id` column, but RLS policies change
+     shape from `user_id = auth.uid()` to
+     `user_id IN (select firm_id from firm_members where user_id = auth.uid())`
+     — meaning `user_id` on domain tables becomes "the firm," not "the person,"
+     and a firm's `owner_id` is itself a firm_member row. Every policy in
+     `supabase/migrations/0001_init.sql` needs this rewrite; treat it as one
+     migration, not a drift.
+   - New: invite-by-email flow (a signup path that joins an existing firm
+     instead of creating one), and a role check in `lib/auth.ts` alongside
+     `requireUser()`.
+   - This changes `lib/supabase/admin.ts`'s "three call sites" invariant not
+     at all — firm-scoped RLS is still RLS, still not the service-role client.
+
+3. **Staff Task Assignment** — built directly on #2. Assign a client or
+   deadline to a `firm_member`; a staff login sees only their queue. Reuses
+   `lib/deadlines/queries.ts` and `lib/clients/queries.ts` with an added
+   assignee filter — the bucket-by-urgency logic in
+   `lib/deadlines/queries.ts` does not change.
+
+4. **Client Portal** — reuses the exact token-auth pattern already built and
+   security-tested for document uploads: `lib/documents/tokens.ts`'s 32-byte
+   CSPRNG tokens and the `/upload/[token]` public route group. Same shape,
+   read-only, persistent instead of one-time — a client's link shows filing
+   status, documents, and fees rather than accepting one upload.
+
+**WhatsApp Integration** (the real Meta Business API, not the `wa.me`
+prefilled links already shipped in `components/documents/share-link-dialog.tsx`)
+is paid and approval-gated externally. Start the Meta WhatsApp Business
+verification process in parallel from day one — it has lead time — but the
+code integration happens last, after approval clears.
 
 ## Database Schema Overview
 - users: CA accounts (managed by Supabase Auth)
