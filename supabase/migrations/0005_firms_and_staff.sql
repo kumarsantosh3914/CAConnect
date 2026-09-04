@@ -87,9 +87,9 @@ language sql
 stable
 security definer
 set search_path = public
-as $$
+as $fn_auth_firm_ids$
   select firm_id from firm_members where user_id = auth.uid()
-$$;
+$fn_auth_firm_ids$;
 
 revoke all on function auth_firm_ids() from public;
 grant execute on function auth_firm_ids() to authenticated;
@@ -103,10 +103,10 @@ language sql
 stable
 security definer
 set search_path = public
-as $$
+as $fn_firm_is_unclaimed$
   select exists (select 1 from firms f where f.id = target and f.created_by = auth.uid())
      and not exists (select 1 from firm_members m where m.firm_id = target)
-$$;
+$fn_firm_is_unclaimed$;
 
 revoke all on function firm_is_unclaimed(uuid) from public;
 grant execute on function firm_is_unclaimed(uuid) to authenticated;
@@ -188,28 +188,80 @@ alter table profiles drop column plan;
 -- user_id is factually correct for every legacy row: a single-member firm had
 -- nobody else who could have created anything.
 
-do $$
-declare
-  t text;
-begin
-  foreach t in array array[
-    'clients', 'client_services', 'deadlines', 'document_requests',
-    'document_request_items', 'documents', 'fees', 'notices',
-    'client_emails', 'email_log'
-  ]
-  loop
-    execute format('alter table %I rename column user_id to firm_id', t);
-    execute format('alter table %I drop constraint %I', t, t || '_user_id_fkey');
-    execute format(
-      'alter table %I add constraint %I foreign key (firm_id) references firms(id) on delete cascade',
-      t, t || '_firm_id_fkey'
-    );
-    execute format(
-      'alter table %I add column created_by uuid references auth.users on delete set null', t
-    );
-    execute format('update %I set created_by = firm_id', t);
-  end loop;
-end $$;
+-- Written out per table rather than as a dynamic do-block loop. The loop was
+-- shorter, but semicolons inside a $$ ... $$ body break the Supabase SQL
+-- editor's statement splitter, and for a one-way-door migration a reviewer
+-- should be able to read exactly what runs rather than infer it.
+
+alter table clients rename column user_id to firm_id;
+alter table clients drop constraint clients_user_id_fkey;
+alter table clients add constraint clients_firm_id_fkey
+  foreign key (firm_id) references firms(id) on delete cascade;
+alter table clients add column created_by uuid references auth.users on delete set null;
+update clients set created_by = firm_id;
+
+alter table client_services rename column user_id to firm_id;
+alter table client_services drop constraint client_services_user_id_fkey;
+alter table client_services add constraint client_services_firm_id_fkey
+  foreign key (firm_id) references firms(id) on delete cascade;
+alter table client_services add column created_by uuid references auth.users on delete set null;
+update client_services set created_by = firm_id;
+
+alter table deadlines rename column user_id to firm_id;
+alter table deadlines drop constraint deadlines_user_id_fkey;
+alter table deadlines add constraint deadlines_firm_id_fkey
+  foreign key (firm_id) references firms(id) on delete cascade;
+alter table deadlines add column created_by uuid references auth.users on delete set null;
+update deadlines set created_by = firm_id;
+
+alter table document_requests rename column user_id to firm_id;
+alter table document_requests drop constraint document_requests_user_id_fkey;
+alter table document_requests add constraint document_requests_firm_id_fkey
+  foreign key (firm_id) references firms(id) on delete cascade;
+alter table document_requests add column created_by uuid references auth.users on delete set null;
+update document_requests set created_by = firm_id;
+
+alter table document_request_items rename column user_id to firm_id;
+alter table document_request_items drop constraint document_request_items_user_id_fkey;
+alter table document_request_items add constraint document_request_items_firm_id_fkey
+  foreign key (firm_id) references firms(id) on delete cascade;
+alter table document_request_items add column created_by uuid references auth.users on delete set null;
+update document_request_items set created_by = firm_id;
+
+alter table documents rename column user_id to firm_id;
+alter table documents drop constraint documents_user_id_fkey;
+alter table documents add constraint documents_firm_id_fkey
+  foreign key (firm_id) references firms(id) on delete cascade;
+alter table documents add column created_by uuid references auth.users on delete set null;
+update documents set created_by = firm_id;
+
+alter table fees rename column user_id to firm_id;
+alter table fees drop constraint fees_user_id_fkey;
+alter table fees add constraint fees_firm_id_fkey
+  foreign key (firm_id) references firms(id) on delete cascade;
+alter table fees add column created_by uuid references auth.users on delete set null;
+update fees set created_by = firm_id;
+
+alter table notices rename column user_id to firm_id;
+alter table notices drop constraint notices_user_id_fkey;
+alter table notices add constraint notices_firm_id_fkey
+  foreign key (firm_id) references firms(id) on delete cascade;
+alter table notices add column created_by uuid references auth.users on delete set null;
+update notices set created_by = firm_id;
+
+alter table client_emails rename column user_id to firm_id;
+alter table client_emails drop constraint client_emails_user_id_fkey;
+alter table client_emails add constraint client_emails_firm_id_fkey
+  foreign key (firm_id) references firms(id) on delete cascade;
+alter table client_emails add column created_by uuid references auth.users on delete set null;
+update client_emails set created_by = firm_id;
+
+alter table email_log rename column user_id to firm_id;
+alter table email_log drop constraint email_log_user_id_fkey;
+alter table email_log add constraint email_log_firm_id_fkey
+  foreign key (firm_id) references firms(id) on delete cascade;
+alter table email_log add column created_by uuid references auth.users on delete set null;
+update email_log set created_by = firm_id;
 
 -- ---------------------------------------------------------------------------
 -- RLS rewrite: ownership by person -> membership of a firm
@@ -387,14 +439,14 @@ language sql
 stable
 security definer
 set search_path = public
-as $$
+as $fn_firm_invite_preview$
   select f.name, i.role, i.email
   from firm_invites i
   join firms f on f.id = i.firm_id
   where i.token = invite_token
     and i.accepted_at is null
     and i.expires_at > now()
-$$;
+$fn_firm_invite_preview$;
 
 revoke all on function firm_invite_preview(text) from public;
 grant execute on function firm_invite_preview(text) to authenticated;
@@ -407,7 +459,7 @@ returns uuid
 language plpgsql
 security definer
 set search_path = public
-as $$
+as $fn_accept_firm_invite$
 declare
   invite firm_invites%rowtype;
   caller_email text;
@@ -441,7 +493,7 @@ begin
 
   return invite.firm_id;
 end;
-$$;
+$fn_accept_firm_invite$;
 
 revoke all on function accept_firm_invite(text) from public;
 grant execute on function accept_firm_invite(text) to authenticated;
