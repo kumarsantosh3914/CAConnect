@@ -3,6 +3,7 @@ import { getApiUser } from '@/lib/auth'
 import { createClient } from '@/lib/supabase/server'
 import { getAiProvider, AiError } from '@/lib/ai/provider'
 import { PDF_LIMITS } from '@/lib/notices/pdf'
+import { aiLimitMessage, planLimits } from '@/lib/plans'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -58,6 +59,30 @@ export async function POST(request: NextRequest) {
 
   const supabase = await createClient()
 
+  // Monthly AI cap. Counted from notices actually drafted this month, so a
+  // failed generation does not burn the CA's allowance.
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('firm_name,plan')
+    .eq('id', user.id)
+    .maybeSingle()
+
+  const plan = profile?.plan ?? 'starter'
+  const limit = planLimits(plan).aiDraftsPerMonth
+  if (Number.isFinite(limit)) {
+    const monthStart = new Date()
+    monthStart.setDate(1)
+    monthStart.setHours(0, 0, 0, 0)
+    const { count } = await supabase
+      .from('notices')
+      .select('id', { count: 'exact', head: true })
+      .not('draft_response', 'is', null)
+      .gte('created_at', monthStart.toISOString())
+    if ((count ?? 0) >= limit) {
+      return NextResponse.json({ error: aiLimitMessage(plan) }, { status: 402 })
+    }
+  }
+
   // Client name is looked up through RLS, so a CA cannot pull another firm's
   // client into their prompt by guessing an id.
   let clientName: string | null = null
@@ -69,12 +94,6 @@ export async function POST(request: NextRequest) {
       .maybeSingle()
     clientName = data?.name ?? null
   }
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('firm_name')
-    .eq('id', user.id)
-    .maybeSingle()
 
   let provider
   try {

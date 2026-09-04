@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getApiUser } from '@/lib/auth'
 import { clientSchema, normalizeClient } from '@/lib/validations/client'
 import { syncClientDeadlines } from '@/lib/deadlines/sync'
+import { clientLimitMessage, planLimits } from '@/lib/plans'
 import type { ClientInput } from '@/lib/validations/client'
 
 export type ActionResult =
@@ -51,6 +52,23 @@ export async function saveClient(
 
   const { services } = parsed.data
   const supabase = await createClient()
+
+  // Plan cap applies only to NEW clients. A CA already over their limit keeps
+  // everyone they have and can still edit them — locking someone out of data
+  // they already entered would be worse than a nag.
+  if (!clientId) {
+    const [{ data: profile }, { count }] = await Promise.all([
+      supabase.from('profiles').select('plan').eq('id', user.id).maybeSingle(),
+      supabase
+        .from('clients')
+        .select('id', { count: 'exact', head: true })
+        .is('archived_at', null),
+    ])
+    const plan = profile?.plan ?? 'starter'
+    if ((count ?? 0) >= planLimits(plan).maxClients) {
+      return { ok: false, error: clientLimitMessage(plan) }
+    }
+  }
 
   const row = { user_id: user.id, ...normalizeClient(parsed.data) }
 

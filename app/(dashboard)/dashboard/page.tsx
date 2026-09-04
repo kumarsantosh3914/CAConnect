@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { AlertTriangle, CalendarClock, Receipt, Users } from 'lucide-react'
 import { requireUser } from '@/lib/auth'
@@ -57,8 +58,11 @@ export default async function DashboardPage() {
     supabase.from('clients').select('id', { count: 'exact', head: true }).is('archived_at', null),
     listDeadlines(),
     feeTotals(),
-    supabase.from('profiles').select('firm_name').eq('id', user.id).maybeSingle(),
+    supabase.from('profiles').select('firm_name,onboarded_at').eq('id', user.id).maybeSingle(),
   ])
+
+  // A CA who has never been through setup starts there, not on empty tiles.
+  if (!profile?.onboarded_at && (clientCount ?? 0) === 0) redirect('/onboarding')
 
   const buckets = bucketDeadlines(deadlines)
   const overdue = buckets[0].deadlines.length

@@ -6,10 +6,14 @@ import type { Database } from '@/types/database'
 /**
  * ⚠️  SERVICE-ROLE CLIENT — BYPASSES ROW LEVEL SECURITY.
  *
- * There are exactly TWO legitimate callers in this codebase, both serving the
- * same anonymous client-upload flow:
- *   app/api/upload/[token]/route.ts  — receiving the file
- *   lib/documents/public.ts          — rendering the upload page
+ * There are exactly THREE legitimate callers in this codebase:
+ *   app/api/upload/[token]/route.ts  — receiving an anonymous client upload
+ *   lib/documents/public.ts          — rendering the anonymous upload page
+ *   app/api/cron/reminders/route.ts  — the scheduled reminder run
+ *
+ * The first two serve the anonymous client-upload flow. The third is a cron
+ * job with no user at all, which therefore cannot satisfy auth.uid() either;
+ * it is guarded by CRON_SECRET instead.
  *
  * Why the exception exists: the whole value of the document collection feature
  * is that the CA's client uploads without creating an account. An anonymous

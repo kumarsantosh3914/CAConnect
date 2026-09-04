@@ -65,6 +65,8 @@ Phase 2 (later): Two-sided marketplace where users can find, compare, and book C
   - The ONLY exception is the anonymous client-upload flow, which cannot
     satisfy `user_id = auth.uid()` because the client has no account:
     `app/api/upload/[token]/route.ts` and `lib/documents/public.ts`.
+    The scheduled reminder job `app/api/cron/reminders/route.ts` is the third
+    and last, since a cron run has no user either; it is guarded by CRON_SECRET.
     Those are the only service-role call sites. Do not add others — if RLS
     is blocking you elsewhere, the policy or the query is wrong.
   - Signed URLs for private storage use the CA's own session, not admin;
