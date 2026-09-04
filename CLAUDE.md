@@ -62,9 +62,13 @@ Phase 2 (later): Two-sided marketplace where users can find, compare, and book C
 ## Coding Rules
 - Always use TypeScript — no JavaScript files
 - Always use Row Level Security (RLS) in Supabase — never bypass it
-  - The ONE exception is `app/api/upload/[token]/` (anonymous client document
-    upload, which cannot satisfy `user_id = auth.uid()`). That is the only
-    service-role call site in the codebase. Do not add others.
+  - The ONLY exception is the anonymous client-upload flow, which cannot
+    satisfy `user_id = auth.uid()` because the client has no account:
+    `app/api/upload/[token]/route.ts` and `lib/documents/public.ts`.
+    Those are the only service-role call sites. Do not add others — if RLS
+    is blocking you elsewhere, the policy or the query is wrong.
+  - Signed URLs for private storage use the CA's own session, not admin;
+    the storage policies already scope them to their user_id prefix.
 - Every API route must verify the authenticated user before any DB query
 - Use server components in Next.js App Router wherever possible
 - Client components only when needed for interactivity

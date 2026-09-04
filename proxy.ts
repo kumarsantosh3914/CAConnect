@@ -72,10 +72,13 @@ const PROTECTED_PREFIXES = [
 export const config = {
   matcher: [
     /*
-     * Everything except static assets and image files. Note /upload/[token] is
-     * deliberately included in neither list of protected prefixes — it must
-     * work with no session at all.
+     * Everything except static assets, image files, and the anonymous
+     * client-upload paths.
+     *
+     * /upload and /api/upload are excluded deliberately: they must work with
+     * no session, and running getUser() there would add a Supabase round-trip
+     * to every request from a client's phone for a session that never exists.
      */
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|upload/|api/upload/|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)',
   ],
 }

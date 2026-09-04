@@ -1,9 +1,14 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { ArrowLeft, FileText, Receipt, Scale } from 'lucide-react'
+import { ArrowLeft, Receipt, Scale } from 'lucide-react'
 import { getClient } from '@/lib/clients/queries'
 import { bucketDeadlines, listDeadlines } from '@/lib/deadlines/queries'
+import { listDocumentRequests, listDocuments } from '@/lib/documents/queries'
+import { createClient as createSupabaseClient } from '@/lib/supabase/server'
+import { requireUser } from '@/lib/auth'
+import { DocumentList, DocumentRequestList } from '@/components/documents/document-lists'
+import { RequestDocumentsButton } from '@/components/documents/request-documents-button'
 import { DeadlineBuckets } from '@/components/deadlines/deadline-buckets'
 import { clientTypeLabel, formatDate, serviceLabel } from '@/lib/format'
 import { stateFromGstin } from '@/lib/validations/india'
@@ -37,7 +42,14 @@ export default async function ClientProfilePage(props: PageProps<'/clients/[id]'
   // "not yours" are indistinguishable here — which is the correct behaviour.
   if (!client) notFound()
 
-  const deadlines = await listDeadlines({ clientId: id, includeCompleted: true })
+  const user = await requireUser()
+  const supabase = await createSupabaseClient()
+  const [deadlines, requests, documents, { data: profile }] = await Promise.all([
+    listDeadlines({ clientId: id, includeCompleted: true }),
+    listDocumentRequests(id),
+    listDocuments(id),
+    supabase.from('profiles').select('firm_name').eq('id', user.id).maybeSingle(),
+  ])
 
   return (
     <>
@@ -137,12 +149,17 @@ export default async function ClientProfilePage(props: PageProps<'/clients/[id]'
               emptyDescription="Tag this client with a service and their compliance calendar fills in automatically."
             />
           </TabsContent>
-          <TabsContent value="documents">
-            <EmptyState
-              icon={FileText}
-              title="No documents yet"
-              description="Send this client an upload link and their files land here."
-            />
+          <TabsContent value="documents" className="space-y-4">
+            <div className="flex justify-end">
+              <RequestDocumentsButton
+                clients={[{ id: client.id, name: client.name, phone: client.phone }]}
+                defaultClientId={client.id}
+                firmName={profile?.firm_name ?? null}
+                label="Request documents"
+              />
+            </div>
+            <DocumentRequestList requests={requests} showClient={false} />
+            <DocumentList documents={documents} showClient={false} />
           </TabsContent>
           <TabsContent value="fees">
             <EmptyState
