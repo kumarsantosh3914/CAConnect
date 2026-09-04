@@ -44,6 +44,7 @@ export function UserMenu({ email, firmName }: { email: string; firmName: string 
         {/* A POST, not a link — signing out must not be reachable by prefetch. */}
         <form action="/auth/signout" method="post">
           <DropdownMenuItem
+            nativeButton
             render={
               <button type="submit" className="w-full">
                 <LogOut className="size-4" aria-hidden />
