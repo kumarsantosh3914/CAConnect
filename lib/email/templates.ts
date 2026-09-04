@@ -1,4 +1,4 @@
-import { formatDate } from '@/lib/format'
+import { formatDate, formatPaise } from '@/lib/format'
 
 function escapeHtml(value: string): string {
   return value
@@ -105,6 +105,90 @@ export function documentNudgeEmail({
       `,
       ctaLabel: 'Upload documents',
       ctaUrl: uploadUrl,
+    }),
+  }
+}
+
+/**
+ * Sent to the consumer the moment they book. This email carries their ONLY
+ * credential — the booking link — so it matters more than a receipt: lose it
+ * and they cannot see the booking or leave a review afterwards.
+ */
+export function bookingReceivedEmail({
+  contactName,
+  caName,
+  bookingUrl,
+  packageTitle,
+  amountPaise,
+}: {
+  contactName: string
+  caName: string
+  bookingUrl: string
+  packageTitle: string | null
+  amountPaise: number | null
+}): { subject: string; html: string } {
+  const what = packageTitle
+    ? `<p style="margin:0 0 12px;">You asked about <strong>${escapeHtml(packageTitle)}</strong>${
+        amountPaise !== null ? ` — ${escapeHtml(formatPaise(amountPaise))}` : ''
+      }.</p>`
+    : ''
+
+  return {
+    subject: `Your request to ${caName}`,
+    html: shell({
+      firmName: 'CAConnect',
+      heading: `Your request has reached ${caName}`,
+      body: `
+        <p style="margin:0 0 12px;">Hello ${escapeHtml(contactName)},</p>
+        ${what}
+        <p style="margin:0 0 12px;">They will get back to you directly. You can check the
+        status of your request any time using the link below — keep this email,
+        it is the only way back to it.</p>
+      `,
+      ctaLabel: 'View your request',
+      ctaUrl: bookingUrl,
+    }),
+  }
+}
+
+/** Sent to the CA when a marketplace lead arrives. */
+export function newBookingEmail({
+  firmName,
+  contactName,
+  city,
+  packageTitle,
+  amountPaise,
+  message,
+  dashboardUrl,
+}: {
+  firmName: string
+  contactName: string
+  city: string | null
+  packageTitle: string | null
+  amountPaise: number | null
+  message: string | null
+  dashboardUrl: string
+}): { subject: string; html: string } {
+  const rows = [
+    packageTitle ? `<li>${escapeHtml(packageTitle)}${amountPaise !== null ? ` — ${escapeHtml(formatPaise(amountPaise))}` : ''}</li>` : '',
+    city ? `<li>${escapeHtml(city)}</li>` : '',
+  ]
+    .filter(Boolean)
+    .join('')
+
+  return {
+    subject: `New enquiry from ${contactName}`,
+    html: shell({
+      firmName,
+      heading: `${contactName} wants to work with you`,
+      body: `
+        <p style="margin:0 0 12px;">A new enquiry came in through your CAConnect listing.</p>
+        ${rows ? `<ul style="margin:0 0 12px;padding-left:18px;">${rows}</ul>` : ''}
+        ${message ? `<p style="margin:0 0 12px;padding:12px;background:#f6f6f4;border-radius:8px;">${escapeHtml(message)}</p>` : ''}
+        <p style="margin:0;">Accept it in your dashboard and it becomes a client automatically.</p>
+      `,
+      ctaLabel: 'Open your bookings',
+      ctaUrl: dashboardUrl,
     }),
   }
 }

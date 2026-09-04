@@ -39,5 +39,6 @@ echo; echo "════ RLS ════"; show "$HERE/02_rls.sql"
 echo; echo "════ INVITES ════"; show "$HERE/03_invites.sql"
 echo; echo "════ PORTAL ════"; show "$HERE/04_portal.sql"
 echo; echo "════ MESSAGE LOG ════"; show "$HERE/05_message_log.sql"
+echo; echo "════ MARKETPLACE ════"; show "$HERE/06_marketplace.sql"
 
 docker rm -f "$C" >/dev/null 2>&1

@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { timingSafeEqual } from 'node:crypto'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { sendEmail } from '@/lib/email/send'
-import { deadlineReminderEmail, documentNudgeEmail } from '@/lib/email/templates'
+import { deadlineReminderEmail, documentNudgeEmail, newBookingEmail } from '@/lib/email/templates'
 import { whatsappStatus } from '@/lib/whatsapp/config'
 import { sendWhatsAppTemplate } from '@/lib/whatsapp/send'
 import { deadlineReminderTemplate, documentRequestTemplate } from '@/lib/whatsapp/templates'
@@ -293,6 +293,75 @@ export async function GET(request: NextRequest) {
     } else {
       failed.push(`request ${req.id}: ${result.error}`)
       await release(claimId)
+    }
+  }
+
+  // ── New marketplace bookings the CA has not answered ───────────────────
+  //
+  // The booking action cannot send this: it runs as `anon` for a logged-out
+  // visitor, and a CA's email address is deliberately not readable there. Here
+  // the service-role key can see firm addresses, so this is the safe place.
+  const { data: pending } = await admin
+    .from('bookings')
+    .select('id,firm_id,contact_name,city,quoted_amount_paise,message,ca_packages(title)')
+    .eq('status', 'requested')
+    .is('responded_at', null)
+
+  if ((pending ?? []).length > 0) {
+    // Two lookups, not a join: firm_members.user_id and profiles.id both point
+    // at auth.users, so there is no foreign key between them for PostgREST to
+    // follow. One round trip per table beats one per booking either way.
+    const firmIds = [...new Set((pending ?? []).map((b) => b.firm_id))]
+    const { data: owners } = await admin
+      .from('firm_members')
+      .select('firm_id,user_id')
+      .in('firm_id', firmIds)
+      .eq('role', 'owner')
+
+    const { data: ownerProfiles } = await admin
+      .from('profiles')
+      .select('id,email')
+      .in('id', (owners ?? []).map((o) => o.user_id))
+
+    const emailByUser = new Map(
+      (ownerProfiles ?? [])
+        .filter((p): p is { id: string; email: string } => Boolean(p.email))
+        .map((p) => [p.id, p.email])
+    )
+    const ownerEmails = new Map(
+      (owners ?? [])
+        .map((o) => [o.firm_id, emailByUser.get(o.user_id)] as const)
+        .filter((entry): entry is [string, string] => Boolean(entry[1]))
+    )
+
+    for (const booking of pending ?? []) {
+      const to = ownerEmails.get(booking.firm_id)
+      if (!to) {
+        skipped.push(`booking ${booking.id}: firm owner has no email`)
+        continue
+      }
+
+      const claimId = await claim('email', 'booking', booking.id, 'new', booking.firm_id, to)
+      if (!claimId) continue
+
+      const { subject, html } = newBookingEmail({
+        firmName: firmNames.get(booking.firm_id) ?? 'Your firm',
+        contactName: booking.contact_name,
+        city: booking.city,
+        packageTitle: (booking.ca_packages as { title: string } | null)?.title ?? null,
+        amountPaise: booking.quoted_amount_paise,
+        message: booking.message,
+        dashboardUrl: `${env.appUrl()}/marketplace`,
+      })
+
+      const result = await sendEmail({ to, subject, html })
+      if (result.ok) {
+        await markSent(claimId, result.id)
+        sent.push(`booking ${booking.id}`)
+      } else {
+        failed.push(`booking ${booking.id}: ${result.error}`)
+        await release(claimId)
+      }
     }
   }
 

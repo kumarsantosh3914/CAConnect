@@ -29,6 +29,8 @@ type Rel<Table extends string, Column extends string> = {
 type ClientFk = [Rel<'clients', 'client_id'>]
 type FirmFk = [Rel<'firms', 'firm_id'>]
 type RequestFk = [Rel<'document_requests', 'request_id'>]
+type ProfileFk = [Rel<'ca_profiles', 'profile_id'>]
+type PackageFk = [Rel<'ca_packages', 'package_id'>]
 
 export type ServiceType =
   | 'itr'
@@ -49,6 +51,9 @@ export type ClientEmailTopic = 'deadline_reminder' | 'document_followup' | 'fee_
 export type NoticeSource = 'paste' | 'pdf'
 export type PlanTier = 'starter' | 'solo' | 'pro' | 'team'
 export type FirmRole = 'owner' | 'staff'
+export type BookingStatus = 'requested' | 'accepted' | 'declined' | 'completed' | 'cancelled'
+export type CommissionBearer = 'consumer' | 'ca'
+export type CommissionStatus = 'pending' | 'waived' | 'collected'
 
 /** Per-person. Firm-level attributes live on FirmRow, not here. */
 export type ProfileRow = {
@@ -284,6 +289,100 @@ export type MessageLogRow = {
   error: string | null
 }
 
+/** The opt-in public marketplace listing. One per firm. See 0011. */
+export type CaProfileRow = {
+  id: string
+  firm_id: string
+  created_by: string | null
+  slug: string
+  is_published: boolean
+  published_at: string | null
+  display_name: string
+  headline: string | null
+  about: string | null
+  city: string | null
+  state: string | null
+  membership_no: string | null
+  years_experience: number | null
+  languages: string[]
+  specialisations: ServiceType[]
+  is_featured: boolean
+  created_at: string
+  updated_at: string
+}
+
+export type CaPackageRow = {
+  id: string
+  firm_id: string
+  profile_id: string
+  created_by: string | null
+  title: string
+  description: string | null
+  service_type: ServiceType | null
+  /** Integer paise, never a float. */
+  price_paise: number
+  turnaround_days: number | null
+  is_active: boolean
+  sort_order: number
+  created_at: string
+  updated_at: string
+}
+
+/**
+ * A consumer enquiry. The consumer has no account — `token` is their whole
+ * credential, the same shape as an upload link.
+ *
+ * Commission is RECORDED, NEVER COLLECTED: there is no payment gateway, so
+ * the CA and client settle directly. These columns exist so GMV is measurable
+ * from the first booking and nothing needs re-modelling when payments land.
+ */
+export type BookingRow = {
+  id: string
+  firm_id: string
+  profile_id: string
+  package_id: string | null
+  token: string
+  contact_name: string
+  contact_email: string
+  contact_phone: string | null
+  city: string | null
+  service_type: ServiceType | null
+  message: string | null
+  status: BookingStatus
+  quoted_amount_paise: number | null
+  /** Basis points. 800 = 8%. Frozen per booking. */
+  commission_rate_bps: number
+  commission_paise: number | null
+  commission_bearer: CommissionBearer
+  commission_status: CommissionStatus
+  client_id: string | null
+  responded_at: string | null
+  completed_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+/** booking_id is UNIQUE and NOT NULL: that is what makes a review verified. */
+export type ReviewRow = {
+  id: string
+  booking_id: string
+  firm_id: string
+  profile_id: string
+  rating: number
+  title: string | null
+  body: string | null
+  reviewer_name: string
+  is_published: boolean
+  created_at: string
+  updated_at: string
+}
+
+export type CaProfileRatingRow = {
+  profile_id: string
+  review_count: number
+  average_rating: number
+}
+
 export type Database = {
   public: {
     Tables: {
@@ -389,6 +488,30 @@ export type Database = {
         Update: Partial<ClientEmailRow>
         Relationships: ClientFk
       }
+      ca_profiles: {
+        Row: CaProfileRow
+        Insert: Insertable<CaProfileRow, 'firm_id' | 'slug' | 'display_name'>
+        Update: Partial<CaProfileRow>
+        Relationships: FirmFk
+      }
+      ca_packages: {
+        Row: CaPackageRow
+        Insert: Insertable<CaPackageRow, 'firm_id' | 'profile_id' | 'title' | 'price_paise'>
+        Update: Partial<CaPackageRow>
+        Relationships: [...ProfileFk, ...FirmFk]
+      }
+      bookings: {
+        Row: BookingRow
+        Insert: Insertable<BookingRow, 'firm_id' | 'profile_id' | 'token' | 'contact_name' | 'contact_email'>
+        Update: Partial<BookingRow>
+        Relationships: [...ClientFk, ...ProfileFk, ...PackageFk, ...FirmFk]
+      }
+      reviews: {
+        Row: ReviewRow
+        Insert: Insertable<ReviewRow, 'booking_id' | 'firm_id' | 'profile_id' | 'rating' | 'reviewer_name'>
+        Update: Partial<ReviewRow>
+        Relationships: [...ProfileFk, ...FirmFk]
+      }
       message_log: {
         Row: MessageLogRow
         Insert: Insertable<MessageLogRow, 'firm_id' | 'kind' | 'subject_id' | 'recipient'>
@@ -396,7 +519,12 @@ export type Database = {
         Relationships: []
       }
     }
-    Views: Record<never, never>
+    Views: {
+      ca_profile_ratings: {
+        Row: CaProfileRatingRow
+        Relationships: []
+      }
+    }
     Functions: {
       auth_firm_ids: { Args: Record<string, never>; Returns: string[] }
       firm_colleague_ids: { Args: Record<string, never>; Returns: string[] }
@@ -406,6 +534,43 @@ export type Database = {
       }
       accept_firm_invite: { Args: { invite_token: string }; Returns: string }
       touch_client_portal: { Args: { portal_id: string }; Returns: undefined }
+      create_booking: {
+        Args: {
+          p_profile_id: string
+          p_token: string
+          p_contact_name: string
+          p_contact_email: string
+          p_package_id?: string | null
+          p_contact_phone?: string | null
+          p_city?: string | null
+          p_service_type?: ServiceType | null
+          p_message?: string | null
+        }
+        Returns: string
+      }
+      booking_by_token: {
+        Args: { p_token: string }
+        Returns: {
+          id: string
+          status: BookingStatus
+          contact_name: string
+          contact_email: string
+          service_type: ServiceType | null
+          message: string | null
+          quoted_amount_paise: number | null
+          created_at: string
+          completed_at: string | null
+          ca_display_name: string
+          ca_slug: string
+          ca_city: string | null
+          package_title: string | null
+          has_review: boolean
+        }[]
+      }
+      create_review: {
+        Args: { p_token: string; p_rating: number; p_title?: string | null; p_body?: string | null }
+        Returns: string
+      }
     }
     Enums: {
       service_type: ServiceType
@@ -419,6 +584,7 @@ export type Database = {
       client_email_topic: ClientEmailTopic
       plan_tier: PlanTier
       firm_role: FirmRole
+      booking_status: BookingStatus
     }
     CompositeTypes: Record<never, never>
   }

@@ -301,14 +301,71 @@ the business verification is the long pole.
   are unchanged and need no approval. Those stay the manual path; the API is
   for automation.
 
-### Marketplace (V2, in progress)
+### Marketplace — BUILT (2026-09-05), migration 0011
 
 Previously deferred pending 20 CAs / 5 paying. The user directed us to build it
-anyway on 2026-09-05; that decision is theirs and is recorded here so the
+anyway on 2026-09-05; that decision is theirs, and it is recorded here so the
 earlier "do not build" note above is not read as still binding.
 
-Five features: CA Public Profile, User-Facing Marketplace, Booking System,
-Reviews & Ratings, Fixed Price Packages.
+All five features are live: CA Public Profile (`/ca/[slug]`), User-Facing
+Marketplace (`/find-a-ca`), Booking System, Reviews & Ratings, Fixed Price
+Packages. The CA manages all of it from `/marketplace`.
+
+**This migration introduced the first public reads in CAConnect.** Until 0011
+nothing was readable by `anon`. Marketplace data is public by definition, so
+profiles, packages and reviews have real `anon` SELECT policies rather than
+another service-role call site — the count stays at five. Two rules keep that
+safe:
+
+- Every public policy filters on a publish flag, and packages and reviews
+  check the PARENT profile's flag through a join rather than a copy of it on
+  their own row. Unpublishing a firm hides its packages and reviews in the same
+  instant, with nothing left behind.
+- **No contact details live on a public table.** RLS is row-level, not
+  column-level, so a public row is public in full. Rather than reach for
+  column grants, the CA's email and phone simply are not on `ca_profiles` —
+  the booking form is the contact channel. Do not add them.
+
+**Consumers never get accounts** (decided with the user). A booking mints a
+32-byte token, the same credential shape as upload links and portals, and that
+link is where the consumer sees their booking and later reviews it. So
+`reviews.booking_id` is UNIQUE and NOT NULL: "only real bookings can review" is
+a schema guarantee, not something code has to remember. A review is offered
+only after the CA marks the work completed.
+
+Consumer writes go through three SECURITY DEFINER functions —
+`create_booking`, `booking_by_token`, `create_review` — the same pattern as
+`accept_firm_invite()`. A permissive anon INSERT on `bookings` would let anyone
+set status, commission or client_id; instead every trustworthy value is derived
+in the database from rows the caller cannot choose. The price comes from the
+package row, never the request body.
+
+**Commission is RECORDED, NEVER COLLECTED.** There is no payment gateway
+(that is V3), so the CA and client settle directly exactly as fees already do.
+`bookings` stores `quoted_amount_paise`, `commission_rate_bps` (basis points,
+800 = 8%) and a frozen `commission_paise`, so GMV and commission-owed are
+measurable from the first booking and nothing needs re-modelling when payments
+land. Per the vision doc the bearer is `consumer` — the CA keeps their full
+fee — and `booking_by_token` deliberately does not return the commission
+columns: what the platform earns is not the buyer's business.
+
+Two behaviours worth keeping:
+
+- Accepting a booking creates a client automatically. If the firm is at its
+  plan's client cap the booking is STILL accepted and the CA is told
+  separately — refusing inbound revenue over a billing limit would be the
+  wrong trade every time.
+- A CA can read their reviews but there is no insert, update or delete policy
+  for them. A CA who could edit their own reviews makes the whole rating
+  worthless.
+
+The CA is not emailed from the booking action: it runs as `anon` for a
+logged-out visitor, and a function that handed out CA emails to anyone who
+asked would be a harvesting endpoint. The reminder cron notifies them instead,
+where the service-role key can see firm addresses safely.
+
+Not built, deliberately: featured/premium placement is only a column
+(`is_featured`) and an ordering rule — there is no billing for it.
 
 ## Database Schema Overview
 - users: CA accounts (managed by Supabase Auth)
@@ -322,6 +379,9 @@ Reviews & Ratings, Fixed Price Packages.
 - notices: IT notice text + AI-drafted responses
 - client_portals: one persistent read-only link per client (V2)
 - message_log: what was sent, per channel (email/whatsapp), with dedupe + delivery status
+- ca_profiles / ca_packages: the opt-in public listing and its fixed prices (V2)
+- bookings: consumer enquiries; commission recorded, never collected (V2)
+- reviews: one per booking, which is what makes them verified (V2)
 
 ## Coding Rules
 - Always use TypeScript — no JavaScript files
@@ -363,6 +423,8 @@ app/(auth)/           → Login/signup pages
 app/(dashboard)/      → Protected CA dashboard pages
 app/upload/[token]/   → Public client upload page (no login)
 app/portal/[token]/   → Public client portal, read-only (no login)
+app/booking/[token]/  → Public consumer booking + review (no login)
+app/(marketing)/find-a-ca, /ca/[slug] → Public marketplace
 app/api/              → API routes
 components/           → Reusable UI components
 components/ui/        → shadcn/ui base components

@@ -11,6 +11,9 @@ export default function MarketingLayout({ children }: LayoutProps<'/'>) {
             <Logo />
           </Link>
           <nav className="flex items-center gap-1">
+            <Button variant="ghost" size="sm" nativeButton={false} render={<Link href="/find-a-ca" />}>
+              Find a CA
+            </Button>
             <Button variant="ghost" size="sm" nativeButton={false} render={<Link href="/how-it-works" />}>
               How it works
             </Button>
@@ -33,6 +36,9 @@ export default function MarketingLayout({ children }: LayoutProps<'/'>) {
         <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center justify-between gap-4 px-4 py-8 text-sm text-muted-foreground">
           <p>© {new Date().getFullYear()} CAConnect · Built for Indian CA firms</p>
           <nav className="flex gap-4">
+            <Link href="/find-a-ca" className="hover:text-foreground">
+              Find a CA
+            </Link>
             <Link href="/pricing" className="hover:text-foreground">
               Pricing
             </Link>

@@ -9,6 +9,7 @@ import {
   Mail,
   Receipt,
   Scale,
+  Store,
   Users,
   UsersRound,
 } from 'lucide-react'
@@ -23,6 +24,7 @@ const NAV_ITEMS = [
   { href: '/notices', label: 'IT Notices', icon: Scale },
   { href: '/client-emails', label: 'Client Emails', icon: Mail },
   { href: '/team', label: 'Team', icon: UsersRound },
+  { href: '/marketplace', label: 'Marketplace', icon: Store },
 ]
 
 export function SidebarNav() {
