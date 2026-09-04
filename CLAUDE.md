@@ -383,6 +383,29 @@ Not built, deliberately: featured/premium placement is only a column
 - bookings: consumer enquiries; commission recorded, never collected (V2)
 - reviews: one per booking, which is what makes them verified (V2)
 
+## Design notes
+
+**Typography.** `app/globals.css` maps `--font-sans` / `--font-heading` to the
+`--font-geist-sans` variable that `app/layout.tsx` defines via next/font. Until
+2026-09-05 `--font-sans` referenced *itself*, which resolves to nothing, so
+`html { @apply font-sans }` fell through to the browser default: the entire app
+rendered in Times while three Geist woff2 files downloaded on every page load
+and were discarded. If text ever looks like a Word document again, check that
+mapping first.
+
+**Colour.** The palette is deliberately near-monochrome, but note what that
+means today: of 62 tokens in `globals.css` only three carry any chroma, and two
+of those are `--destructive`. The only colour a user sees is an error state.
+Introducing a brand accent is an open decision, not an oversight — it would
+touch every page, so it has not been done unilaterally.
+
+**Two audiences.** Since the marketplace shipped, the marketing header serves
+both CAs and people looking to hire one. The concrete problem is that the
+header's primary button is "Start free" even on `/find-a-ca`, and `/signup`
+tells whoever clicks it to "set up your firm". Consumer entry points
+(`/find-a-ca`, `/ca/[slug]`) do exist and work; it is the shared CTA that
+misdirects. Open, and the user's call.
+
 ## Coding Rules
 - Always use TypeScript — no JavaScript files
 - Always use Row Level Security (RLS) in Supabase — never bypass it
