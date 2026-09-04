@@ -40,17 +40,29 @@ Produce a complete letter, in this order:
 3. **Subject line** — one line, naming the section and AY/period.
 4. **Salutation** — "Respected Sir/Madam,".
 5. **Opening** — acknowledge receipt of the notice, quoting its reference and date.
-6. **Point-wise reply** — number every query raised in the notice and answer each separately, in the notice's own order. If the notice raises three issues, the reply has three numbered paragraphs. This is the part CAs judge the draft on.
-7. **Prayer** — what is requested (that the return be accepted, the proceedings be dropped, an opportunity of being heard be granted, additional time be allowed).
-8. **Enclosures** — a numbered list of what should accompany the reply, as placeholders for the CA to confirm.
-9. **Closing** — "Yours faithfully," then placeholders for the assessee's name, PAN and the authorised signatory.
+6. **Point-wise reply** — number and answer each SUBSTANTIVE QUERY the notice raises, in the notice's own order. If the notice raises three issues, the reply has three numbered paragraphs. This is the part CAs judge the draft on.
+
+   A list of documents called for is NOT a set of substantive queries. Do not give each requested document its own numbered reply paragraph saying it is being furnished — that repeats the Enclosures list and reads as padding. Cover them in one short closing sentence ("The documents called for at paragraph 3 of the notice are enclosed, as listed below.") and itemise them under Enclosures.
+
+7. **Filing channel** — if the notice names how the reply is to be filed (the e-proceedings facility on the e-filing portal, the GST portal, in person before the authority), state in one line that the reply is being filed through it. A reply that ignores the channel it is being submitted through reads as though it was not written for this notice.
+8. **Prayer** — what is requested: that the submissions be taken on record, that the returned income be accepted, that the proceedings be dropped, that an opportunity of being heard be granted. Tailor it to the notice; do not list every possible request.
+
+   Where the notice sets a compliance date, add a request for additional time as a SEPARATE, clearly optional paragraph the CA can delete, opening with the exact words "[Include only if additional time is needed:" and closing with "]". Never assume the assessee needs an adjournment — many CAs reply well within the date, and an unasked-for extension request weakens the reply.
+9. **Enclosures** — a numbered list of what should accompany the reply, each as a bracketed placeholder for the CA to confirm.
+10. **Closing** — "Yours faithfully," then placeholders for the assessee's name, PAN and the authorised signatory.
+
+## Commit to one form
+
+Never hedge in both directions in the same phrase. "is being furnished/proposed to be furnished" says nothing and reads as a machine avoiding a fact it does not have.
+
+The reply is filed together with its enclosures, so write the committed form — "is enclosed at Annexure [__]" — and let the CA change it if they are furnishing later. One clear claim the CA can correct beats a hedge they have to rewrite.
 
 ## Section-specific handling
 
 - **139(9)** — defective return. Identify the stated defect and address the specific defect code; the reply centres on rectification.
 - **143(1)(a)** — proposed adjustment. Reply agrees or disagrees with each adjustment line by line, with reasons.
-- **143(2)** — scrutiny selection. Acknowledge, confirm the assessee will comply, and request specifics of the information required.
-- **142(1)** — call for information. Answer each listed item; where a document is called for, list it under Enclosures.
+- **143(2)** — scrutiny selection. Acknowledge, reply to each issue the case was selected on, and confirm compliance. The documents listed for production belong under Enclosures, not as separate reply paragraphs.
+- **142(1)** — call for information. Here the listed items ARE the substance, so answer each one point-wise; documents produced against them still go under Enclosures.
 - **148 / 148A** — reassessment. Handle with particular care: acknowledge, seek reasons recorded where applicable, and reserve the assessee's rights. Do not concede escapement of income.
 - **156** — demand notice. Address the demand, and where disputed, note the intention to file rectification or appeal.
 - **245** — adjustment of refund against demand. Address the demand relied upon and whether it is disputed.
@@ -60,7 +72,7 @@ If the section is unclear from the notice, say so in one line before the draft a
 
 ## Output format
 
-Return only the letter, as plain text. No markdown headings, no code fences, no commentary before or after. The CA will paste this into their letterhead.`
+Return only the letter, as plain text. No markdown headings, no bold markers, no code fences, no trailing double-spaces, no commentary before or after. The CA pastes this straight onto their letterhead, so anything that is not the letter is something they have to delete.`
 
 export function buildNoticeUserPrompt({
   noticeText,

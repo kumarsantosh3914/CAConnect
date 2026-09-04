@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { Copy, Download, RotateCcw } from 'lucide-react'
+import { Copy, Download, Loader2, RotateCcw, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
 import { saveNoticeEdit } from '@/app/(dashboard)/notices/actions'
 import { Button } from '@/components/ui/button'
@@ -14,12 +14,16 @@ export function NoticeDetail({
   noticeId,
   title,
   noticeText,
+  noticeType,
+  clientId,
   draftResponse,
   editedResponse,
 }: {
   noticeId: string
   title: string
   noticeText: string
+  noticeType: string | null
+  clientId: string | null
   draftResponse: string | null
   editedResponse: string | null
 }) {
@@ -28,9 +32,69 @@ export function NoticeDetail({
   // overwritten and "revert" always has something to go back to.
   const [text, setText] = useState(editedResponse ?? draftResponse ?? '')
   const [isSaving, startSave] = useTransition()
+  const [isRegenerating, setIsRegenerating] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const isDirty = text !== (editedResponse ?? draftResponse ?? '')
   const hasEdits = editedResponse !== null && editedResponse !== draftResponse
+
+  /**
+   * Re-runs the drafter against the stored notice text.
+   *
+   * The prompt is iterated as real notices come back from CAs, so a draft
+   * generated last month is not what today's prompt would produce. Without
+   * this the CA has to re-paste the whole notice to benefit.
+   */
+  async function onRegenerate() {
+    if (isDirty && !confirm('Regenerating will replace the text below. Continue?')) return
+
+    setError(null)
+    setIsRegenerating(true)
+    setText('')
+
+    try {
+      const response = await fetch('/api/notices/draft', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          noticeId,
+          noticeText,
+          noticeType: noticeType ?? undefined,
+          clientId: clientId ?? undefined,
+        }),
+      })
+
+      if (!response.ok || !response.body) {
+        const payload = (await response.json().catch(() => ({}))) as { error?: string }
+        setError(payload.error ?? 'Could not regenerate the draft. Please try again.')
+        setText(editedResponse ?? draftResponse ?? '')
+        return
+      }
+
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      let accumulated = ''
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        accumulated += decoder.decode(value, { stream: true })
+        setText(accumulated)
+      }
+
+      // Mid-stream failures arrive in the body, not the status code.
+      const marker = accumulated.indexOf('\n\n[ERROR] ')
+      if (marker !== -1) {
+        setError(accumulated.slice(marker + 10))
+        setText(accumulated.slice(0, marker))
+      }
+      router.refresh()
+    } catch {
+      setError('The connection dropped while drafting. Please try again.')
+      setText(editedResponse ?? draftResponse ?? '')
+    } finally {
+      setIsRegenerating(false)
+    }
+  }
 
   function onSave() {
     startSave(async () => {
@@ -83,6 +147,19 @@ export function NoticeDetail({
               Revert to AI draft
             </Button>
           )}
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={isRegenerating}
+            onClick={onRegenerate}
+          >
+            {isRegenerating ? (
+              <Loader2 className="size-4 animate-spin" aria-hidden />
+            ) : (
+              <Sparkles className="size-4" aria-hidden />
+            )}
+            {isRegenerating ? 'Drafting…' : 'Regenerate'}
+          </Button>
           <Button variant="outline" size="sm" onClick={onCopy}>
             <Copy className="size-4" aria-hidden />
             Copy
@@ -98,7 +175,12 @@ export function NoticeDetail({
       </div>
 
       <TabsContent value="draft" className="space-y-3">
-        {draftResponse ? (
+        {error && (
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+        {draftResponse || isRegenerating ? (
           <>
             <Textarea
               value={text}

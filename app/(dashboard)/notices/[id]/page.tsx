@@ -54,6 +54,8 @@ export default async function NoticePage(props: PageProps<'/notices/[id]'>) {
         noticeId={notice.id}
         title={notice.title}
         noticeText={notice.notice_text}
+        noticeType={notice.notice_type}
+        clientId={notice.client_id}
         draftResponse={notice.draft_response}
         editedResponse={notice.edited_response}
       />
