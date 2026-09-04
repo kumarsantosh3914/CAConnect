@@ -23,5 +23,28 @@ export const env = {
   resendApiKey: () => required('RESEND_API_KEY', process.env.RESEND_API_KEY),
   resendFrom: () => process.env.RESEND_FROM_EMAIL || 'CAConnect <onboarding@resend.dev>',
   cronSecret: () => required('CRON_SECRET', process.env.CRON_SECRET),
-  appUrl: () => process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '') || 'http://localhost:3000',
+  /**
+   * The origin used to build client-facing upload links.
+   *
+   * Falls back to Vercel's stable production domain so those links are correct
+   * on the very first deploy. Without this, a fresh deploy sends clients a
+   * WhatsApp link pointing at localhost — the document collection feature
+   * would look broken to the CA's client, not to the CA.
+   *
+   * VERCEL_PROJECT_PRODUCTION_URL is the project's stable domain, not the
+   * per-deployment VERCEL_URL, so a preview build never mints links that die
+   * when the next deployment supersedes it. Both callers are server-side, so
+   * an unprefixed Vercel variable is fine here.
+   *
+   * Set NEXT_PUBLIC_APP_URL explicitly once a custom domain exists — it wins.
+   */
+  appUrl: () => {
+    const explicit = process.env.NEXT_PUBLIC_APP_URL?.trim()
+    if (explicit) return explicit.replace(/\/$/, '')
+
+    const vercel = process.env.VERCEL_PROJECT_PRODUCTION_URL?.trim()
+    if (vercel) return `https://${vercel.replace(/^https?:\/\//, '').replace(/\/$/, '')}`
+
+    return 'http://localhost:3000'
+  },
 }
