@@ -12,19 +12,24 @@ export async function listClients({
   search,
   service,
   includeArchived = false,
+  assignedTo,
 }: {
   search?: string
   service?: string
   includeArchived?: boolean
+  /** A user id, or 'unassigned'. */
+  assignedTo?: string
 } = {}): Promise<ClientListRow[]> {
   const supabase = await createClient()
 
   let query = supabase
     .from('clients')
-    .select('id,name,client_type,pan,gstin,email,phone,notes,agm_date,is_audit_case,client_services(service_type)')
+    .select('id,name,client_type,pan,gstin,email,phone,notes,agm_date,is_audit_case,assigned_to,client_services(service_type)')
     .order('name')
 
   if (!includeArchived) query = query.is('archived_at', null)
+  if (assignedTo === 'unassigned') query = query.is('assigned_to', null)
+  else if (assignedTo) query = query.eq('assigned_to', assignedTo)
 
   if (search) {
     // Match name, PAN or GSTIN — a CA searching "ABCDE1234F" expects a hit.

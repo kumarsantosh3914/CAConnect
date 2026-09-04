@@ -85,6 +85,47 @@ export async function createManualDeadline(
   return { ok: true }
 }
 
+/**
+ * Assigns one filing to a firm member, or clears it with null.
+ *
+ * Any member can assign, not just the owner: in a firm of this size work gets
+ * picked up and handed over constantly, and requiring the owner for every
+ * handover would be friction with no safety benefit. RLS already ensures you
+ * can only touch your own firm's filings.
+ */
+export async function assignDeadline(
+  deadlineId: string,
+  assignedTo: string | null
+): Promise<DeadlineActionResult> {
+  const ctx = await getApiFirm()
+  if (!ctx) return { ok: false, error: 'Your session has expired. Please log in again.' }
+  const { firm } = ctx
+
+  // Only somebody actually in this firm may be assigned work in it.
+  if (assignedTo) {
+    const supabaseCheck = await createClient()
+    const { data: member } = await supabaseCheck
+      .from('firm_members')
+      .select('id')
+      .eq('firm_id', firm.firmId)
+      .eq('user_id', assignedTo)
+      .maybeSingle()
+    if (!member) return { ok: false, error: 'That person is not in your firm.' }
+  }
+
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('deadlines')
+    .update({ assigned_to: assignedTo })
+    .eq('id', deadlineId)
+
+  if (error) return { ok: false, error: 'Could not reassign that deadline.' }
+
+  revalidatePath('/deadlines')
+  revalidatePath('/dashboard')
+  return { ok: true }
+}
+
 export async function deleteDeadline(deadlineId: string): Promise<DeadlineActionResult> {
   const ctx = await getApiFirm()
   if (!ctx) return { ok: false, error: 'Your session has expired. Please log in again.' }

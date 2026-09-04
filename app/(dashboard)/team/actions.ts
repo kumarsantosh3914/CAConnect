@@ -105,9 +105,9 @@ export async function revokeInvite(inviteId: string): Promise<TeamActionResult> 
 }
 
 /**
- * Removes a member from the firm. Their work stays: domain rows are keyed to
- * the firm, and created_by is nulled by the foreign key only if the auth user
- * itself is deleted, which this does not do.
+ * Removes a member from the firm. Their work stays with the firm — domain rows
+ * are keyed to firm_id — but anything assigned to them is handed back so it
+ * does not vanish from every assignee filter.
  */
 export async function removeMember(userId: string): Promise<TeamActionResult> {
   const ctx = await getApiFirm()
@@ -122,6 +122,21 @@ export async function removeMember(userId: string): Promise<TeamActionResult> {
   }
 
   const supabase = await createClient()
+
+  // Hand their work back to the firm first. assigned_to references auth.users,
+  // not firm_members, so removing the membership would otherwise leave filings
+  // assigned to somebody who is no longer here — invisible in every filter.
+  await supabase
+    .from('deadlines')
+    .update({ assigned_to: null })
+    .eq('firm_id', firm.firmId)
+    .eq('assigned_to', userId)
+  await supabase
+    .from('clients')
+    .update({ assigned_to: null })
+    .eq('firm_id', firm.firmId)
+    .eq('assigned_to', userId)
+
   const { error } = await supabase
     .from('firm_members')
     .delete()

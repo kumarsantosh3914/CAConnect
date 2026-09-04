@@ -6,6 +6,7 @@ export type DeadlineRecord = {
   id: string
   client_id: string
   client_name: string
+  assigned_to: string | null
   service_type: ServiceType
   label: string
   period_label: string
@@ -29,18 +30,27 @@ export async function listDeadlines({
   clientId,
   service,
   includeCompleted = false,
-}: { clientId?: string; service?: string; includeCompleted?: boolean } = {}) {
+  assignedTo,
+}: {
+  clientId?: string
+  service?: string
+  includeCompleted?: boolean
+  /** A user id, or 'unassigned' for filings nobody has picked up. */
+  assignedTo?: string
+} = {}) {
   const supabase = await createClient()
 
   let query = supabase
     .from('deadlines')
-    .select('id,client_id,service_type,label,period_label,due_date,status,notes,clients(name)')
+    .select('id,client_id,service_type,label,period_label,due_date,status,notes,assigned_to,clients(name)')
     .order('due_date')
 
   if (clientId) query = query.eq('client_id', clientId)
   if (service) query = query.eq('service_type', service as ServiceType)
   // Filed and Done are finished work — off the command centre unless asked for.
   if (!includeCompleted) query = query.in('status', ['pending', 'in_progress'])
+  if (assignedTo === 'unassigned') query = query.is('assigned_to', null)
+  else if (assignedTo) query = query.eq('assigned_to', assignedTo)
 
   const { data, error } = await query
   if (error) throw new Error(`Could not load deadlines: ${error.message}`)

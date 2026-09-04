@@ -22,6 +22,8 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Field } from '@/components/ui/field'
+import { AssigneeSelect } from '@/components/team/assignee-select'
+import { UNASSIGNED, type AssignableMember } from '@/lib/team/assignable'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import {
   Select,
@@ -44,12 +46,15 @@ export function ClientFormDialog({
   clientId,
   defaultValues,
   onSaved,
+  members = [],
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   clientId?: string
   defaultValues: ClientFormValues
   onSaved?: (clientId: string) => void
+  /** Firm members who can own this client. Empty in a one-person firm. */
+  members?: AssignableMember[]
 }) {
   const [isPending, startTransition] = useTransition()
   const [formError, setFormError] = useState<string | null>(null)
@@ -265,6 +270,28 @@ export function ClientFormDialog({
               hint="ROC annual return is due within 60 days of the AGM"
             >
               <Input id="agm_date" type="date" {...register('agm_date')} />
+            </Field>
+          )}
+
+          {members.length > 1 && (
+            <Field
+              label="Handled by"
+              htmlFor="assigned_to"
+              hint="New filings for this client go to them"
+            >
+              <Controller
+                control={control}
+                name="assigned_to"
+                render={({ field }) => (
+                  <AssigneeSelect
+                    id="assigned_to"
+                    className="w-full"
+                    members={members}
+                    value={field.value ?? ''}
+                    onChange={(next) => field.onChange(next === UNASSIGNED ? '' : next)}
+                  />
+                )}
+              />
             </Field>
           )}
 

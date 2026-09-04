@@ -8,6 +8,8 @@ import { bucketDeadlines, listDeadlines } from '@/lib/deadlines/queries'
 import { feeTotals } from '@/lib/fees/queries'
 import { listDocuments } from '@/lib/documents/queries'
 import { listClients } from '@/lib/clients/queries'
+import { listTeamMembers } from '@/lib/team/queries'
+import { toAssignable } from '@/lib/team/assignable'
 import { RequestDocumentsButton } from '@/components/documents/request-documents-button'
 import { AddFeeButton } from '@/components/fees/fees-view'
 import { formatDateTime, formatPaise } from '@/lib/format'
@@ -55,16 +57,17 @@ function StatCard({
 }
 
 export default async function DashboardPage() {
-  const { firm } = await requireFirm()
+  const { user, firm } = await requireFirm()
   const supabase = await createClient()
 
-  const [{ count: clientCount }, deadlines, totals, documents, clients] =
+  const [{ count: clientCount }, deadlines, totals, documents, clients, teamMembers] =
     await Promise.all([
       supabase.from('clients').select('id', { count: 'exact', head: true }).is('archived_at', null),
       listDeadlines(),
       feeTotals(),
       listDocuments(),
       listClients(),
+      listTeamMembers(firm.firmId),
     ])
 
   // A firm with nothing in it starts at setup, not on empty tiles.
@@ -88,7 +91,7 @@ export default async function DashboardPage() {
             // Quick-add shortcuts, per the vision doc's dashboard spec: the
             // four things a CA starts from a cold open.
             <div className="flex flex-wrap gap-2">
-              <AddClientButton />
+              <AddClientButton members={toAssignable(teamMembers, user.id)} />
               <RequestDocumentsButton
                 clients={clients.map((c) => ({ id: c.id, name: c.name, phone: c.phone }))}
                 firmName={firm.name}
@@ -149,6 +152,7 @@ export default async function DashboardPage() {
             </div>
             <DeadlineBuckets
               buckets={urgent}
+              members={toAssignable(teamMembers, user.id)}
               emptyTitle="Nothing due this week"
               emptyDescription="No overdue filings and nothing due in the next 7 days."
             />

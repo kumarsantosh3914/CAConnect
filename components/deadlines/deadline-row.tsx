@@ -3,9 +3,10 @@
 import { useTransition } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Check, MoreHorizontal, Trash2 } from 'lucide-react'
+import { Check, MoreHorizontal, Trash2, UserRound } from 'lucide-react'
 import { toast } from 'sonner'
-import { deleteDeadline, updateDeadlineStatus } from '@/app/(dashboard)/deadlines/actions'
+import { assignDeadline, deleteDeadline, updateDeadlineStatus } from '@/app/(dashboard)/deadlines/actions'
+import { UNASSIGNED, type AssignableMember } from '@/lib/team/assignable'
 import type { DeadlineRecord } from '@/lib/deadlines/queries'
 import type { DeadlineStatus } from '@/types/database'
 import { formatDate, formatDueIn, serviceLabel } from '@/lib/format'
@@ -32,17 +33,35 @@ export function DeadlineRow({
   deadline,
   isOverdue,
   showClient = true,
+  members = [],
 }: {
   deadline: DeadlineRecord
   isOverdue: boolean
   showClient?: boolean
+  members?: AssignableMember[]
 }) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
 
+  const assignee = members.find((m) => m.userId === deadline.assigned_to)
+  // Trim the "(you)" suffix here: it reads fine in a picker, but repeated down
+  // a list of filings it is noise.
+  const assigneeLabel = assignee ? assignee.label.replace(' (you)', '') : 'Unassigned'
+
   function setStatus(status: DeadlineStatus) {
     startTransition(async () => {
       const result = await updateDeadlineStatus(deadline.id, status)
+      if (!result.ok) {
+        toast.error(result.error)
+        return
+      }
+      router.refresh()
+    })
+  }
+
+  function onAssign(next: string) {
+    startTransition(async () => {
+      const result = await assignDeadline(deadline.id, next === UNASSIGNED ? null : next)
       if (!result.ok) {
         toast.error(result.error)
         return
@@ -110,6 +129,33 @@ export function DeadlineRow({
           <Check className="size-4" aria-hidden />
           {deadline.status === 'pending' ? 'Start' : deadline.status === 'in_progress' ? 'Mark filed' : 'Done'}
         </Button>
+
+        {members.length > 1 && (
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={isPending}
+                  aria-label={`Assign ${deadline.label}`}
+                >
+                  <UserRound className="size-4" aria-hidden />
+                  <span className="hidden sm:inline">{assigneeLabel}</span>
+                </Button>
+              }
+            />
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => onAssign(UNASSIGNED)}>Unassigned</DropdownMenuItem>
+              <DropdownMenuSeparator />
+              {members.map((m) => (
+                <DropdownMenuItem key={m.userId} onClick={() => onAssign(m.userId)}>
+                  {m.label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
 
         <DropdownMenu>
           <DropdownMenuTrigger

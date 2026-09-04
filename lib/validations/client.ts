@@ -41,6 +41,8 @@ export const clientSchema = z.object({
   // Audit cases file ITR by 31 October instead of 31 July.
   is_audit_case: z.boolean(),
   services: z.array(z.enum(SERVICE_TYPES)),
+  // A firm member's user id, or '' for unassigned.
+  assigned_to: z.union([z.literal(''), z.string().uuid()]).optional(),
 })
 
 export type ClientInput = z.infer<typeof clientSchema>
@@ -63,6 +65,7 @@ export function normalizeClient(input: ClientInput) {
     notes: blank(input.notes),
     agm_date: blank(input.agm_date),
     is_audit_case: input.is_audit_case,
+    assigned_to: input.assigned_to ? input.assigned_to : null,
   }
 }
 
@@ -77,4 +80,5 @@ export const clientDefaults: ClientInput = {
   agm_date: '',
   is_audit_case: false,
   services: [],
+  assigned_to: '',
 }

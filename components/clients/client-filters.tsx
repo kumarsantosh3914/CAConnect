@@ -7,6 +7,7 @@ import { SERVICE_TYPES } from '@/lib/validations/client'
 import { serviceLabel } from '@/lib/format'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import type { AssignableMember } from '@/lib/team/assignable'
 import {
   Select,
   SelectContent,
@@ -23,7 +24,17 @@ const SERVICE_ITEMS: Record<string, string> = {
   ...Object.fromEntries(SERVICE_TYPES.map((type) => [type, serviceLabel(type)])),
 }
 
-export function ClientFilters({ search, service }: { search?: string; service?: string }) {
+export function ClientFilters({
+  search,
+  service,
+  assigned,
+  members = [],
+}: {
+  search?: string
+  service?: string
+  assigned?: string
+  members?: AssignableMember[]
+}) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [, startTransition] = useTransition()
@@ -38,7 +49,7 @@ export function ClientFilters({ search, service }: { search?: string; service?: 
     setValue(search ?? '')
   }
 
-  function apply(next: { q?: string; service?: string }) {
+  function apply(next: { q?: string; service?: string; assigned?: string }) {
     const params = new URLSearchParams(searchParams.toString())
     for (const [key, val] of Object.entries(next)) {
       if (!val || val === ALL) params.delete(key)
@@ -57,7 +68,7 @@ export function ClientFilters({ search, service }: { search?: string; service?: 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value])
 
-  const hasFilters = Boolean(search || service)
+  const hasFilters = Boolean(search || service || assigned)
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -92,6 +103,36 @@ export function ClientFilters({ search, service }: { search?: string; service?: 
           ))}
         </SelectContent>
       </Select>
+
+      {/*
+        Three states, not two: no filter at all, nobody assigned, or one
+        person. The shared AssigneeSelect only distinguishes the last two, so
+        the filter spells its options out.
+      */}
+      {members.length > 1 && (
+        <Select
+          items={{
+            [ALL]: 'Anyone',
+            unassigned: 'Unassigned',
+            ...Object.fromEntries(members.map((m) => [m.userId, m.label])),
+          }}
+          value={assigned ?? ALL}
+          onValueChange={(next) => apply({ assigned: (next as string) ?? ALL })}
+        >
+          <SelectTrigger className="w-44" aria-label="Filter by who handles the client">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL}>Anyone</SelectItem>
+            <SelectItem value="unassigned">Unassigned</SelectItem>
+            {members.map((m) => (
+              <SelectItem key={m.userId} value={m.userId}>
+                {m.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
 
       {hasFilters && (
         <Button variant="ghost" size="sm" onClick={() => router.replace('/clients')}>

@@ -50,3 +50,14 @@ select count(*) as leaked_profile from profiles where id = '11111111-1111-1111-1
 
 \echo '=== profile emails are populated (expect junior@test) ==='
 select email from profiles where id = '55555555-5555-5555-5555-555555555555';
+
+\echo '=== OWNER REMOVES A MEMBER (regression: 42P17 policy recursion) ==='
+set app.current_user_id = '22222222-2222-2222-2222-222222222222';
+delete from firm_members where firm_id = '22222222-2222-2222-2222-222222222222' and user_id = '55555555-5555-5555-5555-555555555555';
+
+\echo '=== junior is gone (expect 1 member left: the owner) ==='
+select count(*) as members_left from firm_members where firm_id = '22222222-2222-2222-2222-222222222222';
+
+\echo '=== a staff member cannot remove the owner (expect 0 rows) ==='
+set app.current_user_id = '11111111-1111-1111-1111-111111111111';
+delete from firm_members where firm_id = '22222222-2222-2222-2222-222222222222';

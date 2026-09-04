@@ -8,6 +8,7 @@ import { toast } from 'sonner'
 import { ClientFormDialog } from './client-form-dialog'
 import { archiveClient } from '@/app/(dashboard)/clients/actions'
 import { clientDefaults } from '@/lib/validations/client'
+import type { AssignableMember } from '@/lib/team/assignable'
 import type { ClientInput } from '@/lib/validations/client'
 import { clientTypeLabel, serviceLabel } from '@/lib/format'
 import { Badge } from '@/components/ui/badge'
@@ -39,6 +40,7 @@ export type ClientListRow = {
   notes: string | null
   agm_date: string | null
   is_audit_case: boolean
+  assigned_to: string | null
   services: string[]
 }
 
@@ -53,6 +55,7 @@ function toFormValues(row: ClientListRow): ClientInput {
     notes: row.notes ?? '',
     agm_date: row.agm_date ?? '',
     is_audit_case: row.is_audit_case,
+    assigned_to: row.assigned_to ?? '',
     services: row.services as ClientInput['services'],
   }
 }
@@ -60,9 +63,11 @@ function toFormValues(row: ClientListRow): ClientInput {
 export function ClientsTable({
   clients,
   isFiltered,
+  members = [],
 }: {
   clients: ClientListRow[]
   isFiltered: boolean
+  members?: AssignableMember[]
 }) {
   const router = useRouter()
   const [editing, setEditing] = useState<ClientListRow | null>(null)
@@ -100,6 +105,7 @@ export function ClientsTable({
           open={addOpen}
           onOpenChange={setAddOpen}
           defaultValues={clientDefaults}
+          members={members}
           onSaved={() => router.refresh()}
         />
       </>
@@ -183,6 +189,7 @@ export function ClientsTable({
           onOpenChange={(open) => !open && setEditing(null)}
           clientId={editing.id}
           defaultValues={toFormValues(editing)}
+          members={members}
           onSaved={() => router.refresh()}
         />
       )}

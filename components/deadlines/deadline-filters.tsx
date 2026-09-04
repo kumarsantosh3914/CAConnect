@@ -7,6 +7,7 @@ import { SERVICE_TYPES } from '@/lib/validations/client'
 import { serviceLabel } from '@/lib/format'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
+import type { AssignableMember } from '@/lib/team/assignable'
 import {
   Select,
   SelectContent,
@@ -22,11 +23,15 @@ export function DeadlineFilters({
   clientId,
   service,
   includeCompleted,
+  assigned,
+  members = [],
 }: {
   clients: { id: string; name: string }[]
   clientId?: string
   service?: string
   includeCompleted: boolean
+  assigned?: string
+  members?: AssignableMember[]
 }) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -51,7 +56,7 @@ export function DeadlineFilters({
     startTransition(() => router.replace(query ? `/deadlines?${query}` : '/deadlines'))
   }
 
-  const hasFilters = Boolean(clientId || service || includeCompleted)
+  const hasFilters = Boolean(clientId || service || includeCompleted || assigned)
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -90,6 +95,31 @@ export function DeadlineFilters({
           ))}
         </SelectContent>
       </Select>
+
+      {members.length > 1 && (
+        <Select
+          items={{
+            [ALL]: 'Anyone',
+            unassigned: 'Unassigned',
+            ...Object.fromEntries(members.map((m) => [m.userId, m.label])),
+          }}
+          value={assigned ?? ALL}
+          onValueChange={(next) => apply({ assigned: (next as string) ?? ALL })}
+        >
+          <SelectTrigger className="w-44" aria-label="Filter by assignee">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL}>Anyone</SelectItem>
+            <SelectItem value="unassigned">Unassigned</SelectItem>
+            {members.map((m) => (
+              <SelectItem key={m.userId} value={m.userId}>
+                {m.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
 
       <label className="flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm">
         <Checkbox

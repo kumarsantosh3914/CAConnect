@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 import { ClientFormDialog } from './client-form-dialog'
 import { archiveClient, restoreClient } from '@/app/(dashboard)/clients/actions'
 import type { ClientInput } from '@/lib/validations/client'
+import type { AssignableMember } from '@/lib/team/assignable'
 import { Button } from '@/components/ui/button'
 
 type ClientRecord = {
@@ -21,10 +22,17 @@ type ClientRecord = {
   agm_date: string | null
   is_audit_case: boolean
   archived_at: string | null
+  assigned_to: string | null
   services: string[]
 }
 
-export function ClientHeaderActions({ client }: { client: ClientRecord }) {
+export function ClientHeaderActions({
+  client,
+  members = [],
+}: {
+  client: ClientRecord
+  members?: AssignableMember[]
+}) {
   const router = useRouter()
   const [editOpen, setEditOpen] = useState(false)
 
@@ -38,6 +46,7 @@ export function ClientHeaderActions({ client }: { client: ClientRecord }) {
     notes: client.notes ?? '',
     agm_date: client.agm_date ?? '',
     is_audit_case: client.is_audit_case,
+    assigned_to: client.assigned_to ?? '',
     services: client.services as ClientInput['services'],
   }
 
@@ -78,6 +87,7 @@ export function ClientHeaderActions({ client }: { client: ClientRecord }) {
         onOpenChange={setEditOpen}
         clientId={client.id}
         defaultValues={defaultValues}
+        members={members}
         onSaved={() => router.refresh()}
       />
     </div>

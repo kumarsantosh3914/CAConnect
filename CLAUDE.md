@@ -7,7 +7,7 @@
 V1 is built, deployed, and live at https://www.bevritti.in (Vercel + Supabase,
 ap-southeast-1). All 5 core features, dashboard, email reminder cron, onboarding,
 marketing pages, Google sign-in, and plan limits are in place. RLS verified
-under attack, 29 unit tests on the deadline engine, a 20-assertion security
+under attack, 29 unit tests on the deadline engine, a 21-assertion security
 suite for the anonymous upload route (`npm run security-check`).
 
 **Open item — config, not code:** Resend can only send to the account owner's
@@ -21,9 +21,10 @@ code.
 Two Definition of Done criteria from the build plan are go-to-market, not
 buildable: 20 CAs actively using it, and 5 saying they would pay.
 
-**Current phase:** V2, team & retention features. Feature 1 (AI Client Email
-Drafter) is done. Next up: the firm/staff data model. See "V2 Roadmap" below
-for what's in scope, what's deferred, and why.
+**Current phase:** V2, team & retention features. Features 1-3 (AI Client
+Email Drafter, firm/staff data model, staff task assignment) are done. Next up:
+the client portal. See "V2 Roadmap" below for what's in scope, what's deferred,
+and why.
 
 ## What We Are Building
 CAConnect is an AI-powered practice management tool for small Indian CA firms (1-5 people).
@@ -143,13 +144,39 @@ Do not build them until the DoD criteria above are met. Revisit then.
    - This changes `lib/supabase/admin.ts`'s "three call sites" invariant not
      at all — firm-scoped RLS is still RLS, still not the service-role client.
 
-3. **Staff Task Assignment** — built directly on #2. Assign a client or
-   deadline to a `firm_member`; a staff login sees only their queue. Reuses
-   `lib/deadlines/queries.ts` and `lib/clients/queries.ts` with an added
-   assignee filter — the bucket-by-urgency logic in
-   `lib/deadlines/queries.ts` does not change.
+3. **Staff Task Assignment** — DONE (2026-09-04), migrations 0007 and 0008,
+   applied to production. `clients.assigned_to` and `deadlines.assigned_to`
+   both reference `auth.users` with `on delete set null`. `listClients()` and
+   `listDeadlines()` take an `assignedTo` filter; the bucket-by-urgency logic
+   did not change. New deadlines inherit the client's assignee at sync time
+   (`lib/deadlines/sync.ts`) so assigning a client once covers everything
+   generated for it afterwards.
 
-4. **Client Portal** — reuses the exact token-auth pattern already built and
+   Assignment is a **filter, not a permission**. Any firm member can still see
+   and edit any of the firm's rows — RLS stays firm-scoped. `/deadlines?assigned=me`
+   is the queue view; `?assigned=unassigned` finds work nobody owns. Read the
+   header of `supabase/migrations/0007_assignment.sql` before changing this:
+   making assignment an RLS boundary would mean a staff member cannot cover
+   for a colleague who is on leave, which is exactly what a 3-person firm needs
+   to do. Two guards do exist, both server-side: `assignDeadline()` and
+   `updateClient()` reject an assignee who is not a member of the firm, and
+   removing a member clears their assignments first so no row points at a
+   stranger.
+
+   `toAssignable()` lives in `lib/team/assignable.ts`, deliberately NOT marked
+   `'use client'` — Server Components import it too, and marking it client-only
+   500s every page that does.
+
+   Migration 0008 exists because `firm_members_delete_by_owner` queried
+   `firm_members` from inside its own policy: Postgres raised 42P17 (infinite
+   recursion) and member removal silently failed with the UI reporting success.
+   The fix is the same `security definer` pattern the other helpers use
+   (`auth_owned_firm_ids()`). Any policy on `firm_members` that needs to read
+   `firm_members` must go through such a function. The dry-run harness now
+   covers removal (`scripts/migration-dryrun/03_invites.sql`) — it did not
+   before, which is why this reached production.
+
+4. **Client Portal** — NEXT. Reuses the exact token-auth pattern already built and
    security-tested for document uploads: `lib/documents/tokens.ts`'s 32-byte
    CSPRNG tokens and the `/upload/[token]` public route group. Same shape,
    read-only, persistent instead of one-time — a client's link shows filing

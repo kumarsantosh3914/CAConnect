@@ -21,7 +21,7 @@ export async function syncClientDeadlines(clientId: string, firmId: string, user
 
   const { data: client, error: clientError } = await supabase
     .from('clients')
-    .select('id,is_audit_case,agm_date,archived_at,client_services(service_type,is_active)')
+    .select('id,is_audit_case,agm_date,archived_at,assigned_to,client_services(service_type,is_active)')
     .eq('id', clientId)
     .maybeSingle()
 
@@ -55,6 +55,9 @@ export async function syncClientDeadlines(clientId: string, firmId: string, user
         generated.map((d) => ({
           firm_id: firmId,
           created_by: userId,
+          // A new filing goes to whoever owns the client. Explicitly
+          // reassigning one filing later overrides this for that filing only.
+          assigned_to: client.assigned_to,
           client_id: clientId,
           template_id: d.template_id,
           service_type: d.service_type,

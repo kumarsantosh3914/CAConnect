@@ -2,6 +2,7 @@ import { CalendarCheck } from 'lucide-react'
 import type { DeadlineBucket } from '@/lib/deadlines/queries'
 import { DeadlineRow } from './deadline-row'
 import { EmptyState } from '@/components/ui/empty-state'
+import type { AssignableMember } from '@/lib/team/assignable'
 import { cn } from '@/lib/utils'
 
 export function DeadlineBuckets({
@@ -9,11 +10,13 @@ export function DeadlineBuckets({
   showClient = true,
   emptyTitle = 'Nothing due',
   emptyDescription = 'Every compliance deadline is filed. Enjoy it.',
+  members = [],
 }: {
   buckets: DeadlineBucket[]
   showClient?: boolean
   emptyTitle?: string
   emptyDescription?: string
+  members?: AssignableMember[]
 }) {
   const total = buckets.reduce((sum, bucket) => sum + bucket.deadlines.length, 0)
 
@@ -52,6 +55,7 @@ export function DeadlineBuckets({
                   deadline={deadline}
                   isOverdue={bucket.key === 'overdue'}
                   showClient={showClient}
+                  members={members}
                 />
               ))}
             </div>

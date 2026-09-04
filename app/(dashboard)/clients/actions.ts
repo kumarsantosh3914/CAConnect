@@ -108,6 +108,17 @@ export async function saveClient(
     }
   }
 
+  // A client changing hands takes their not-yet-started filings with them.
+  // Anything already in progress or filed keeps its assignee — the same rule
+  // deadline sync follows: never quietly undo work somebody has begun.
+  if (clientId && row.assigned_to !== undefined) {
+    await supabase
+      .from('deadlines')
+      .update({ assigned_to: row.assigned_to })
+      .eq('client_id', savedId)
+      .eq('status', 'pending')
+  }
+
   // Service tags drive the compliance calendar, so refresh it here rather
   // than making the CA remember a separate "generate deadlines" step.
   // A failure here must not lose the client they just typed in.

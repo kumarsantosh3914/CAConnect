@@ -8,6 +8,8 @@ import { listDocumentRequests, listDocuments } from '@/lib/documents/queries'
 import { listFees } from '@/lib/fees/queries'
 import { listNotices } from '@/lib/notices/queries'
 import { listClientEmails } from '@/lib/client-emails/queries'
+import { listTeamMembers } from '@/lib/team/queries'
+import { toAssignable } from '@/lib/team/assignable'
 import { ClientEmailList } from '@/components/client-emails/email-list'
 import { FeesView } from '@/components/fees/fees-view'
 import { NoticesList } from '@/components/notices/notices-list'
@@ -46,15 +48,17 @@ export default async function ClientProfilePage(props: PageProps<'/clients/[id]'
   // "not yours" are indistinguishable here — which is the correct behaviour.
   if (!client) notFound()
 
-  const { firm } = await requireFirm()
-  const [deadlines, requests, documents, fees, notices, emails] = await Promise.all([
+  const { user, firm } = await requireFirm()
+  const [deadlines, requests, documents, fees, notices, emails, teamMembers] = await Promise.all([
     listDeadlines({ clientId: id, includeCompleted: true }),
     listDocumentRequests(id),
     listDocuments(id),
     listFees({ clientId: id }),
     listNotices(id),
     listClientEmails(id),
+    listTeamMembers(firm.firmId),
   ])
+  const members = toAssignable(teamMembers, user.id)
 
   return (
     <>
@@ -79,7 +83,7 @@ export default async function ClientProfilePage(props: PageProps<'/clients/[id]'
               ))}
             </div>
           </div>
-          <ClientHeaderActions client={client} />
+          <ClientHeaderActions client={client} members={members} />
         </div>
       </div>
 
@@ -151,6 +155,7 @@ export default async function ClientProfilePage(props: PageProps<'/clients/[id]'
             <DeadlineBuckets
               buckets={bucketDeadlines(deadlines)}
               showClient={false}
+              members={members}
               emptyTitle="No deadlines yet"
               emptyDescription="Tag this client with a service and their compliance calendar fills in automatically."
             />

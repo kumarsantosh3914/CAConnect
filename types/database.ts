@@ -95,6 +95,7 @@ export type ClientRow = {
   id: string
   firm_id: string
   created_by: string | null
+  assigned_to: string | null
   name: string
   client_type: ClientType
   pan: string | null
@@ -135,6 +136,7 @@ export type DeadlineRow = {
   id: string
   firm_id: string
   created_by: string | null
+  assigned_to: string | null
   client_id: string
   template_id: string | null
   service_type: ServiceType
