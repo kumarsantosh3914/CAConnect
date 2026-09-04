@@ -259,15 +259,29 @@ export type ClientEmailRow = {
   updated_at: string
 }
 
-export type EmailLogRow = {
+/**
+ * One row per message actually sent, on any channel. Renamed from email_log in
+ * migration 0010 when WhatsApp joined; the dedupe key is
+ * (channel, kind, subject_id, variant).
+ */
+export type MessageChannel = 'email' | 'whatsapp'
+
+export type MessageLogRow = {
   id: string
   firm_id: string
   created_by: string | null
+  channel: MessageChannel
   kind: string
   subject_id: string
   variant: string
   recipient: string
   sent_at: string
+  /** The provider's id (Resend id, or Meta's wamid), for tracing a send. */
+  provider_message_id: string | null
+  /** Set asynchronously by a delivery webhook: sent | delivered | read | failed. */
+  status: string | null
+  status_at: string | null
+  error: string | null
 }
 
 export type Database = {
@@ -375,10 +389,10 @@ export type Database = {
         Update: Partial<ClientEmailRow>
         Relationships: ClientFk
       }
-      email_log: {
-        Row: EmailLogRow
-        Insert: Insertable<EmailLogRow, 'firm_id' | 'kind' | 'subject_id' | 'recipient'>
-        Update: Partial<EmailLogRow>
+      message_log: {
+        Row: MessageLogRow
+        Insert: Insertable<MessageLogRow, 'firm_id' | 'kind' | 'subject_id' | 'recipient'>
+        Update: Partial<MessageLogRow>
         Relationships: []
       }
     }

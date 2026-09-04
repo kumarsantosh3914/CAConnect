@@ -23,6 +23,28 @@ export const env = {
   resendApiKey: () => required('RESEND_API_KEY', process.env.RESEND_API_KEY),
   resendFrom: () => process.env.RESEND_FROM_EMAIL || 'CAConnect <onboarding@resend.dev>',
   cronSecret: () => required('CRON_SECRET', process.env.CRON_SECRET),
+
+  /**
+   * WhatsApp Business (Meta Cloud API).
+   *
+   * Every one of these is optional at the type level, because the integration
+   * ships switched off: Meta has to approve the business and the message
+   * templates before a single message can go out, and that approval is not in
+   * our hands. lib/whatsapp/config.ts turns these into a single yes/no.
+   */
+  whatsappApiVersion: () => process.env.WHATSAPP_API_VERSION || 'v21.0',
+  whatsappPhoneNumberId: () => process.env.WHATSAPP_PHONE_NUMBER_ID?.trim() || '',
+  whatsappAccessToken: () => process.env.WHATSAPP_ACCESS_TOKEN?.trim() || '',
+  /** Echoed back to Meta during webhook subscription. */
+  whatsappVerifyToken: () => process.env.WHATSAPP_VERIFY_TOKEN?.trim() || '',
+  /** Signs webhook payloads. Without it we cannot trust a callback at all. */
+  whatsappAppSecret: () => process.env.WHATSAPP_APP_SECRET?.trim() || '',
+  /**
+   * The master switch, deliberately separate from the credentials. Having keys
+   * in the environment must never be enough to start messaging real clients —
+   * someone has to say so out loud.
+   */
+  whatsappEnabledFlag: () => process.env.WHATSAPP_ENABLED?.trim() === 'true',
   /**
    * The origin used to build client-facing upload links.
    *

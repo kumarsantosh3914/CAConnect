@@ -7,7 +7,7 @@
 V1 is built, deployed, and live at https://www.bevritti.in (Vercel + Supabase,
 ap-southeast-1). All 5 core features, dashboard, email reminder cron, onboarding,
 marketing pages, Google sign-in, and plan limits are in place. RLS verified
-under attack, 52 unit tests, and a 39-assertion security suite covering both
+under attack, 71 unit tests, and a 39-assertion security suite covering both
 token-authenticated anonymous surfaces — the upload route and the client
 portal (`npm run security-check`, needs `npm run dev` running).
 
@@ -24,10 +24,10 @@ buildable: 20 CAs actively using it, and 5 saying they would pay.
 
 **Current phase:** V2, team & retention features. All four features (AI Client
 Email Drafter, firm/staff data model, staff task assignment, client portal) are
-done, and as of 2026-09-05 they are gated by plan — see "Plan gating" below.
-What remains in V2 is the WhatsApp Business API integration, which is gated on
-Meta's external approval. See "V2 Roadmap" below for what was in scope, what is
-deferred, and why.
+done and gated by plan — see "Plan gating" below. WhatsApp is BUILT and
+switched off, waiting on Meta approval only (see "WhatsApp Integration"). Work
+has now started on the marketplace half of V2, at the user's explicit
+direction — see "Marketplace" below.
 
 ## What We Are Building
 CAConnect is an AI-powered practice management tool for small Indian CA firms (1-5 people).
@@ -261,11 +261,54 @@ The pricing page and landing page read seats and portal entitlement straight
 off `PLANS`, but the feature-comparison rows are hand-maintained — update
 `app/(marketing)/pricing/page.tsx` when you change a limit.
 
-**WhatsApp Integration** (the real Meta Business API, not the `wa.me`
-prefilled links already shipped in `components/documents/share-link-dialog.tsx`)
-is paid and approval-gated externally. Start the Meta WhatsApp Business
-verification process in parallel from day one — it has lead time — but the
-code integration happens last, after approval clears.
+### WhatsApp Integration — BUILT, switched off (2026-09-05)
+
+Migration 0010, `lib/whatsapp/`, `app/api/webhooks/whatsapp/`. Everything is
+in place and inert; the only thing left is Meta's approval, which is not ours
+to give. `.env.example` carries the full setup order — **do that in order**,
+the business verification is the long pole.
+
+- **The flag is deliberately separate from the credentials.** `whatsappStatus()`
+  requires `WHATSAPP_ENABLED=true` AND the credentials. Having keys in the
+  environment must never be enough to start messaging a CA's real clients; a
+  half-configured deploy that did would be a trust incident, not a bug. It
+  returns a *reason* when off, so the cron reports
+  `"whatsapp": "disabled (…)"` rather than silently doing nothing — which is
+  indistinguishable from broken.
+- **Templates are a contract, not documentation.** Meta must pre-approve every
+  business-initiated message, and the parameter count must match exactly or
+  every send fails with a 132000 error. `lib/whatsapp/templates.ts` holds the
+  exact body text to register. Editing a word on one side and not the other
+  breaks sending or silently reorders parameters, so the unit tests count
+  `{{n}}` placeholders against the params built.
+- **`email_log` became `message_log`** with a `channel` column, and the dedupe
+  key is now `(channel, kind, subject_id, variant)`. Without `channel`, a
+  deadline emailed at T-1 could never also go out on WhatsApp — the second
+  channel would collide and vanish.
+- **One reminder per deadline, not one per channel.** The cron tries WhatsApp
+  first (India reads WhatsApp, ignores email), falls back to email, and skips
+  email entirely if WhatsApp already went. On a WhatsApp failure it KEEPS the
+  claim with the error recorded rather than releasing it — releasing would
+  retry tomorrow and tell the client about the same filing twice.
+- **The webhook's HMAC is its only security.** `app/api/webhooks/whatsapp` is
+  public and unauthenticated. It verifies `X-Hub-Signature-256` over the RAW
+  body — parse-then-reserialise changes key order and the signature never
+  matches — with a constant-time compare, and it only ever UPDATEs status onto
+  rows we already wrote. It never inserts, so even a forged callback that
+  somehow passed could not put data into the system. It is a service-role call
+  site for the same reason the cron is: a webhook has no user.
+- The `wa.me` prefilled links in `components/documents/share-link-dialog.tsx`
+  are unchanged and need no approval. Those stay the manual path; the API is
+  for automation.
+
+### Marketplace (V2, in progress)
+
+Previously deferred pending 20 CAs / 5 paying. The user directed us to build it
+anyway on 2026-09-05; that decision is theirs and is recorded here so the
+earlier "do not build" note above is not read as still binding.
+
+Five features: CA Public Profile, User-Facing Marketplace, Booking System,
+Reviews & Ratings, Fixed Price Packages.
 
 ## Database Schema Overview
 - users: CA accounts (managed by Supabase Auth)
@@ -278,6 +321,7 @@ code integration happens last, after approval clears.
 - fees: fee records per client per service (amounts in paise, never floats)
 - notices: IT notice text + AI-drafted responses
 - client_portals: one persistent read-only link per client (V2)
+- message_log: what was sent, per channel (email/whatsapp), with dedupe + delivery status
 
 ## Coding Rules
 - Always use TypeScript — no JavaScript files
@@ -289,7 +333,9 @@ code integration happens last, after approval clears.
     since a cron run has no user either; it is guarded by CRON_SECRET. The
     fourth is `lib/portal/public.ts` (with `app/api/portal/[token]/document/[id]`),
     the client portal — same anonymous, token-as-credential shape as uploads.
-    Those four are the only service-role call sites. Do not add others — if RLS
+    The fifth is `app/api/webhooks/whatsapp/route.ts`, which has no user either
+    and is authenticated by an HMAC over the raw body instead.
+    Those five are the only service-role call sites. Do not add others — if RLS
     is blocking you elsewhere, the policy or the query is wrong.
   - Signed URLs for private storage use the CA's own session, not admin;
     the storage policies already scope them to their user_id prefix.
