@@ -30,16 +30,26 @@ import {
   TableRow,
 } from '@/components/ui/table'
 
+export type SeatState = {
+  used: number
+  /** null means unlimited. */
+  max: number | null
+  atCap: boolean
+  message: string
+}
+
 export function TeamView({
   members,
   invites,
   isOwner,
   currentUserId,
+  seats,
 }: {
   members: TeamMember[]
   invites: PendingInvite[]
   isOwner: boolean
   currentUserId: string
+  seats: SeatState
 }) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
@@ -106,15 +116,23 @@ export function TeamView({
       <section className="space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-lg font-semibold tracking-tight">
-            People ({members.length})
+            People ({seats.max ? `${seats.used} of ${seats.max}` : members.length})
           </h2>
-          {isOwner && (
+          {isOwner && !seats.atCap && (
             <Button onClick={() => { setNewLink(null); setError(null); setInviteOpen(true) }}>
               <UserPlus className="size-4" aria-hidden />
               Invite someone
             </Button>
           )}
         </div>
+
+        {isOwner && seats.atCap && (
+          <Alert>
+            <AlertDescription>
+              {seats.message} Ask us to move you up — there is no card to enter.
+            </AlertDescription>
+          </Alert>
+        )}
 
         <div className="rounded-lg border">
           <Table>

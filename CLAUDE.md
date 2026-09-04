@@ -7,7 +7,7 @@
 V1 is built, deployed, and live at https://www.bevritti.in (Vercel + Supabase,
 ap-southeast-1). All 5 core features, dashboard, email reminder cron, onboarding,
 marketing pages, Google sign-in, and plan limits are in place. RLS verified
-under attack, 42 unit tests, and a 39-assertion security suite covering both
+under attack, 52 unit tests, and a 39-assertion security suite covering both
 token-authenticated anonymous surfaces — the upload route and the client
 portal (`npm run security-check`, needs `npm run dev` running).
 
@@ -24,9 +24,10 @@ buildable: 20 CAs actively using it, and 5 saying they would pay.
 
 **Current phase:** V2, team & retention features. All four features (AI Client
 Email Drafter, firm/staff data model, staff task assignment, client portal) are
-done. What remains in V2 is the WhatsApp Business API integration, which is
-gated on Meta's external approval. See "V2 Roadmap" below for what was in
-scope, what is deferred, and why.
+done, and as of 2026-09-05 they are gated by plan — see "Plan gating" below.
+What remains in V2 is the WhatsApp Business API integration, which is gated on
+Meta's external approval. See "V2 Roadmap" below for what was in scope, what is
+deferred, and why.
 
 ## What We Are Building
 CAConnect is an AI-powered practice management tool for small Indian CA firms (1-5 people).
@@ -216,6 +217,49 @@ Do not build them until the DoD criteria above are met. Revisit then.
    "New link" updates the token in place — an insert-instead-of-update would
    leave the old link alive, and a revocation that does not revoke is worse
    than none. Re-enabling a revoked portal always mints a fresh token.
+
+### Plan gating (2026-09-05)
+
+The V2 features shipped ungated: `lib/plans.ts` capped only clients and AI
+drafts, so a free Starter firm got unlimited staff seats and unlimited client
+portals — the exact bundle the vision doc prices at ₹2,999/month, and roadmap
+Phase 5 ("ACV grows to ₹2,499/firm") depends on. Now gated:
+
+| | Starter | Solo | Pro | Team |
+|---|---|---|---|---|
+| Seats (incl. owner) | 1 | 1 | 3 | ∞ |
+| Client portal | — | — | yes | yes |
+
+**Pro gets 3 seats deliberately, deviating from the vision doc**, whose pricing
+table gives Pro no multi-user at all. That table contradicts the doc's own
+persona for the tier — Priya, a "3-person firm with 120+ clients" — and 150
+clients is not a one-person workload. Decided with the user on 2026-09-05.
+
+Three rules, all of which have a reason:
+
+- **Enforced in server actions, not RLS.** A plan cap is a billing rule, not a
+  tenancy boundary. Same place and shape as the existing client cap in
+  `app/(dashboard)/clients/actions.ts`. RLS stays about who owns what.
+- **Pending invites count against seats**, or a one-seat firm sends five
+  invitations and all five land — the cap discovered by the fifth person at the
+  moment they accept. Expired invites do NOT count, since they can never be
+  accepted and the owner has no way to reclaim that seat.
+- **Downgrading never breaks a live client portal.** `createClientPortal`
+  refuses on a plan without portals, and "New link" routes through it so a
+  downgraded firm cannot rotate a token either — but existing links keep
+  serving. The person a dead link punishes is the CA's client, who did nothing
+  and cannot fix it. `revokeClientPortal` is deliberately never gated: turning
+  something off must always be possible.
+
+Known and accepted: `accept_firm_invite()` does not re-check the seat cap, so
+an invite sent on Pro can still be accepted after a downgrade to Solo. Invites
+expire, which bounds the window, and closing it would mean teaching the
+SECURITY DEFINER RPC about plan tiers for a case that cannot happen without a
+manual downgrade. Revisit if self-serve billing ever lands.
+
+The pricing page and landing page read seats and portal entitlement straight
+off `PLANS`, but the feature-comparison rows are hand-maintained — update
+`app/(marketing)/pricing/page.tsx` when you change a limit.
 
 **WhatsApp Integration** (the real Meta Business API, not the `wa.me`
 prefilled links already shipped in `components/documents/share-link-dialog.tsx`)

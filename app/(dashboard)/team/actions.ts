@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getApiFirm } from '@/lib/auth'
 import { generateUploadToken } from '@/lib/documents/tokens'
 import { requestOrigin } from '@/lib/url'
+import { planLimits, seatLimitMessage } from '@/lib/plans'
 
 export type TeamActionResult = { ok: true } | { ok: false; error: string }
 export type InviteResult = { ok: true; url: string } | { ok: false; error: string }
@@ -61,6 +62,34 @@ export async function inviteMember(input: z.infer<typeof inviteSchema>): Promise
       .in('user_id', existingMembers.map((m) => m.id))
     if (already?.length) {
       return { ok: false, error: 'That person is already in your firm.' }
+    }
+  }
+
+  // Seat limit. Pending invites count against it: without that, a one-seat
+  // firm could send five invitations and have all five land, and the cap would
+  // only be discovered by the fifth person at the moment they accept.
+  //
+  // Enforced here rather than in RLS because it is a billing rule, not a
+  // tenancy boundary — the same place and shape as the client cap in
+  // app/(dashboard)/clients/actions.ts.
+  const { maxMembers } = planLimits(firm.plan)
+  if (Number.isFinite(maxMembers)) {
+    const [{ count: memberCount }, { count: inviteCount }] = await Promise.all([
+      supabase
+        .from('firm_members')
+        .select('id', { count: 'exact', head: true })
+        .eq('firm_id', firm.firmId),
+      supabase
+        .from('firm_invites')
+        .select('id', { count: 'exact', head: true })
+        .eq('firm_id', firm.firmId)
+        .is('accepted_at', null)
+        // An expired invite can never be accepted, so it must not go on
+        // holding a seat the owner has no way to reclaim.
+        .gt('expires_at', new Date().toISOString()),
+    ])
+    if ((memberCount ?? 0) + (inviteCount ?? 0) >= maxMembers) {
+      return { ok: false, error: seatLimitMessage(firm.plan) }
     }
   }
 

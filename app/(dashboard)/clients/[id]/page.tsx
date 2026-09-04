@@ -10,6 +10,7 @@ import { listNotices } from '@/lib/notices/queries'
 import { listClientEmails } from '@/lib/client-emails/queries'
 import { getClientPortal } from '@/lib/portal/queries'
 import { requestOrigin } from '@/lib/url'
+import { planLimits, portalUpgradeMessage } from '@/lib/plans'
 import { listTeamMembers } from '@/lib/team/queries'
 import { toAssignable } from '@/lib/team/assignable'
 import { ClientEmailList } from '@/components/client-emails/email-list'
@@ -208,6 +209,9 @@ export default async function ClientProfilePage(props: PageProps<'/clients/[id]'
               clientName={client.name}
               clientPhone={client.phone}
               firmName={firm.name}
+              entitlement={
+                planLimits(firm.plan).clientPortal ? null : portalUpgradeMessage(firm.plan)
+              }
               portal={
                 portal
                   ? {

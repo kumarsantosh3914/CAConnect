@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getApiFirm } from '@/lib/auth'
 import { generateShareToken } from '@/lib/tokens'
 import { requestOrigin } from '@/lib/url'
+import { planLimits, portalUpgradeMessage } from '@/lib/plans'
 
 export type PortalActionResult = { ok: true; url: string } | { ok: false; error: string }
 
@@ -49,6 +50,16 @@ export async function createClientPortal(clientId: string): Promise<PortalAction
   }
   if (!(await assertOwnClient(clientId))) {
     return { ok: false, error: 'That client could not be found.' }
+  }
+
+  // Plan entitlement. Note what this does NOT do: it never disables a portal
+  // that already exists. A firm that drops to a plan without portals keeps
+  // serving the links it already handed out, because the person those links
+  // would break is the CA's client, who did nothing and cannot fix it. Only
+  // minting a new one is blocked — and "New link" routes through here too, so
+  // a downgraded firm cannot rotate a token either.
+  if (!planLimits(firm.plan).clientPortal) {
+    return { ok: false, error: portalUpgradeMessage(firm.plan) }
   }
 
   const supabase = await createClient()

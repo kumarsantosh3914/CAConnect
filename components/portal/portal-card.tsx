@@ -13,6 +13,7 @@ import { ShareLinkDialog } from '@/components/documents/share-link-dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { formatDateTime } from '@/lib/format'
 
 export type PortalCardState = {
@@ -35,12 +36,15 @@ export function PortalCard({
   clientPhone,
   firmName,
   portal,
+  entitlement,
 }: {
   clientId: string
   clientName: string
   clientPhone: string | null
   firmName: string | null
   portal: PortalCardState
+  /** null when the plan includes portals; the upgrade message when it does not. */
+  entitlement: string | null
 }) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
@@ -180,13 +184,21 @@ export function PortalCard({
                 the old one stays dead.
               </p>
             )}
-            <Button
-              disabled={pending}
-              onClick={() => run(() => createClientPortal(clientId), 'Portal link created.')}
-            >
-              <Link2 className="size-4" aria-hidden />
-              {portal && !portal.isActive ? 'Create a new link' : 'Create portal link'}
-            </Button>
+            {entitlement ? (
+              <Alert>
+                <AlertDescription>
+                  {entitlement} Ask us to move you up — there is no card to enter.
+                </AlertDescription>
+              </Alert>
+            ) : (
+              <Button
+                disabled={pending}
+                onClick={() => run(() => createClientPortal(clientId), 'Portal link created.')}
+              >
+                <Link2 className="size-4" aria-hidden />
+                {portal && !portal.isActive ? 'Create a new link' : 'Create portal link'}
+              </Button>
+            )}
           </div>
         )}
       </CardContent>

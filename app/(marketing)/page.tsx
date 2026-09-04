@@ -230,7 +230,15 @@ submits as under.
                     </li>
                     <li className="flex gap-2">
                       <Check className="size-4 shrink-0 text-foreground" aria-hidden />
-                      All five features
+                      {plan.maxMembers === 1
+                        ? 'Single login'
+                        : Number.isFinite(plan.maxMembers)
+                          ? `${plan.maxMembers} team members`
+                          : 'Unlimited team members'}
+                    </li>
+                    <li className="flex gap-2">
+                      <Check className="size-4 shrink-0 text-foreground" aria-hidden />
+                      {plan.clientPortal ? 'Client portals included' : 'All five core features'}
                     </li>
                   </ul>
                 </div>
