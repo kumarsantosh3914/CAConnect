@@ -12,10 +12,10 @@ export default function LandingPage() {
         place, built for small Indian CA firms.
       </p>
       <div className="flex gap-3">
-        <Button size="lg" render={<Link href="/signup" />}>
+        <Button size="lg" nativeButton={false} render={<Link href="/signup" />}>
           Start Free — No Credit Card
         </Button>
-        <Button size="lg" variant="outline" render={<Link href="/login" />}>
+        <Button size="lg" variant="outline" nativeButton={false} render={<Link href="/login" />}>
           Log in
         </Button>
       </div>

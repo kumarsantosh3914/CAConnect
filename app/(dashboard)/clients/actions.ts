@@ -1,0 +1,136 @@
+'use server'
+
+import { revalidatePath } from 'next/cache'
+import { createClient } from '@/lib/supabase/server'
+import { getApiUser } from '@/lib/auth'
+import { clientSchema, normalizeClient } from '@/lib/validations/client'
+import type { ClientInput } from '@/lib/validations/client'
+
+export type ActionResult =
+  | { ok: true; clientId: string }
+  | { ok: false; error: string; fieldErrors?: Record<string, string> }
+
+/**
+ * Postgres error codes we can explain better than Postgres can.
+ * CLAUDE.md: users see human-readable messages, never raw technical errors.
+ */
+function friendlyDbError(code: string | undefined, message: string): string {
+  if (code === '23505') {
+    if (message.includes('clients_user_pan_idx')) {
+      return 'You already have a client with this PAN.'
+    }
+    return 'That record already exists.'
+  }
+  if (code === '23514') {
+    return 'One of the values does not look right. Check the PAN and GSTIN.'
+  }
+  if (code === '42501') {
+    return 'You do not have permission to change this record.'
+  }
+  return 'Could not save the client. Please try again.'
+}
+
+export async function saveClient(
+  input: ClientInput,
+  clientId?: string
+): Promise<ActionResult> {
+  // Auth before any DB work, per CLAUDE.md.
+  const user = await getApiUser()
+  if (!user) return { ok: false, error: 'Your session has expired. Please log in again.' }
+
+  const parsed = clientSchema.safeParse(input)
+  if (!parsed.success) {
+    const fieldErrors: Record<string, string> = {}
+    for (const issue of parsed.error.issues) {
+      const key = issue.path[0]
+      if (typeof key === 'string' && !fieldErrors[key]) fieldErrors[key] = issue.message
+    }
+    return { ok: false, error: 'Please fix the highlighted fields.', fieldErrors }
+  }
+
+  const { services } = parsed.data
+  const supabase = await createClient()
+
+  const row = { user_id: user.id, ...normalizeClient(parsed.data) }
+
+  let savedId: string
+
+  if (clientId) {
+    const { data, error } = await supabase
+      .from('clients')
+      .update(row)
+      .eq('id', clientId)
+      .select('id')
+      .single()
+    if (error) return { ok: false, error: friendlyDbError(error.code, error.message) }
+    savedId = data.id
+  } else {
+    const { data, error } = await supabase.from('clients').insert(row).select('id').single()
+    if (error) return { ok: false, error: friendlyDbError(error.code, error.message) }
+    savedId = data.id
+  }
+
+  // Service tags: replace the set wholesale — simpler to reason about than
+  // diffing, and the row count per client is tiny.
+  const { error: deleteError } = await supabase
+    .from('client_services')
+    .delete()
+    .eq('client_id', savedId)
+  if (deleteError) return { ok: false, error: friendlyDbError(deleteError.code, deleteError.message) }
+
+  if (services.length > 0) {
+    const { error: insertError } = await supabase.from('client_services').insert(
+      services.map((service_type) => ({
+        user_id: user.id,
+        client_id: savedId,
+        service_type,
+      }))
+    )
+    if (insertError) {
+      return { ok: false, error: friendlyDbError(insertError.code, insertError.message) }
+    }
+  }
+
+  revalidatePath('/clients')
+  revalidatePath(`/clients/${savedId}`)
+  revalidatePath('/dashboard')
+
+  return { ok: true, clientId: savedId }
+}
+
+/**
+ * Archive rather than delete. A CA's filing history is the reason they cannot
+ * leave the product — destroying it on a misclick would be unforgivable.
+ */
+export async function archiveClient(clientId: string): Promise<ActionResult> {
+  const user = await getApiUser()
+  if (!user) return { ok: false, error: 'Your session has expired. Please log in again.' }
+
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('clients')
+    .update({ archived_at: new Date().toISOString() })
+    .eq('id', clientId)
+
+  if (error) return { ok: false, error: friendlyDbError(error.code, error.message) }
+
+  revalidatePath('/clients')
+  revalidatePath('/dashboard')
+  return { ok: true, clientId }
+}
+
+export async function restoreClient(clientId: string): Promise<ActionResult> {
+  const user = await getApiUser()
+  if (!user) return { ok: false, error: 'Your session has expired. Please log in again.' }
+
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('clients')
+    .update({ archived_at: null })
+    .eq('id', clientId)
+
+  if (error) return { ok: false, error: friendlyDbError(error.code, error.message) }
+
+  revalidatePath('/clients')
+  return { ok: true, clientId }
+}
