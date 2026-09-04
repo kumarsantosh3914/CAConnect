@@ -35,12 +35,10 @@ export async function listClients({
   const { data, error } = await query
   if (error) throw new Error(`Could not load clients: ${error.message}`)
 
-  const rows = (data ?? []).map((row) => {
-    const { client_services, ...rest } = row as typeof row & {
-      client_services: { service_type: string }[]
-    }
-    return { ...rest, services: client_services.map((s) => s.service_type) }
-  })
+  const rows = (data ?? []).map(({ client_services, ...rest }) => ({
+    ...rest,
+    services: client_services.map((s) => s.service_type as string),
+  }))
 
   // Filtering on the joined table server-side would drop the other tags from
   // the result, so narrow here instead. Client counts are small (20–200).
@@ -58,8 +56,6 @@ export async function getClient(clientId: string) {
   if (error) throw new Error(`Could not load client: ${error.message}`)
   if (!data) return null
 
-  const { client_services, ...rest } = data as typeof data & {
-    client_services: { service_type: string }[]
-  }
-  return { ...rest, services: client_services.map((s) => s.service_type) }
+  const { client_services, ...rest } = data
+  return { ...rest, services: client_services.map((s) => s.service_type as string) }
 }

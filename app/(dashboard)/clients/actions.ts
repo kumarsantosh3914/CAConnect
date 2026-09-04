@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { getApiUser } from '@/lib/auth'
 import { clientSchema, normalizeClient } from '@/lib/validations/client'
+import { syncClientDeadlines } from '@/lib/deadlines/sync'
 import type { ClientInput } from '@/lib/validations/client'
 
 export type ActionResult =
@@ -91,8 +92,18 @@ export async function saveClient(
     }
   }
 
+  // Service tags drive the compliance calendar, so refresh it here rather
+  // than making the CA remember a separate "generate deadlines" step.
+  // A failure here must not lose the client they just typed in.
+  try {
+    await syncClientDeadlines(savedId, user.id)
+  } catch (error) {
+    console.error('Deadline sync failed for client', savedId, error)
+  }
+
   revalidatePath('/clients')
   revalidatePath(`/clients/${savedId}`)
+  revalidatePath('/deadlines')
   revalidatePath('/dashboard')
 
   return { ok: true, clientId: savedId }
@@ -114,7 +125,15 @@ export async function archiveClient(clientId: string): Promise<ActionResult> {
 
   if (error) return { ok: false, error: friendlyDbError(error.code, error.message) }
 
+  // An archived client should stop accruing future deadlines.
+  try {
+    await syncClientDeadlines(clientId, user.id)
+  } catch (syncError) {
+    console.error('Deadline sync failed for client', clientId, syncError)
+  }
+
   revalidatePath('/clients')
+  revalidatePath('/deadlines')
   revalidatePath('/dashboard')
   return { ok: true, clientId }
 }
@@ -131,6 +150,13 @@ export async function restoreClient(clientId: string): Promise<ActionResult> {
 
   if (error) return { ok: false, error: friendlyDbError(error.code, error.message) }
 
+  try {
+    await syncClientDeadlines(clientId, user.id)
+  } catch (syncError) {
+    console.error('Deadline sync failed for client', clientId, syncError)
+  }
+
   revalidatePath('/clients')
+  revalidatePath('/deadlines')
   return { ok: true, clientId }
 }

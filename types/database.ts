@@ -13,6 +13,22 @@
 /** Row minus the columns the database fills in itself. */
 type Insertable<Row, Required extends keyof Row> = Partial<Row> & Pick<Row, Required>
 
+/**
+ * Foreign keys, so supabase-js can type nested selects like
+ * `clients.select('*, client_services(service_type)')`. Without these the
+ * client reports "could not find the relation" at the type level.
+ */
+type Rel<Table extends string, Column extends string> = {
+  foreignKeyName: string
+  columns: [Column]
+  isOneToOne: false
+  referencedRelation: Table
+  referencedColumns: ['id']
+}
+
+type ClientFk = [Rel<'clients', 'client_id'>]
+type RequestFk = [Rel<'document_requests', 'request_id'>]
+
 export type ServiceType =
   | 'itr'
   | 'gstr1'
@@ -198,7 +214,7 @@ export type Database = {
         Row: ClientServiceRow
         Insert: Insertable<ClientServiceRow, 'user_id' | 'client_id' | 'service_type'>
         Update: Partial<ClientServiceRow>
-        Relationships: []
+        Relationships: ClientFk
       }
       deadline_templates: {
         Row: DeadlineTemplateRow
@@ -216,7 +232,7 @@ export type Database = {
           'user_id' | 'client_id' | 'service_type' | 'label' | 'period_label' | 'due_date'
         >
         Update: Partial<DeadlineRow>
-        Relationships: []
+        Relationships: ClientFk
       }
       document_requests: {
         Row: DocumentRequestRow
@@ -225,13 +241,13 @@ export type Database = {
           'user_id' | 'client_id' | 'token' | 'title' | 'expires_at'
         >
         Update: Partial<DocumentRequestRow>
-        Relationships: []
+        Relationships: ClientFk
       }
       document_request_items: {
         Row: DocumentRequestItemRow
         Insert: Insertable<DocumentRequestItemRow, 'user_id' | 'request_id' | 'label'>
         Update: Partial<DocumentRequestItemRow>
-        Relationships: []
+        Relationships: RequestFk
       }
       documents: {
         Row: DocumentRow
@@ -240,19 +256,19 @@ export type Database = {
           'user_id' | 'client_id' | 'storage_path' | 'file_name' | 'mime_type' | 'size_bytes'
         >
         Update: Partial<DocumentRow>
-        Relationships: []
+        Relationships: [...ClientFk, ...RequestFk]
       }
       fees: {
         Row: FeeRow
         Insert: Insertable<FeeRow, 'user_id' | 'client_id' | 'description' | 'amount_paise'>
         Update: Partial<FeeRow>
-        Relationships: []
+        Relationships: ClientFk
       }
       notices: {
         Row: NoticeRow
         Insert: Insertable<NoticeRow, 'user_id' | 'title' | 'notice_text'>
         Update: Partial<NoticeRow>
-        Relationships: []
+        Relationships: ClientFk
       }
       email_log: {
         Row: EmailLogRow

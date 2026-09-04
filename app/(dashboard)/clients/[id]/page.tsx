@@ -1,8 +1,10 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { ArrowLeft, CalendarClock, FileText, Receipt, Scale } from 'lucide-react'
+import { ArrowLeft, FileText, Receipt, Scale } from 'lucide-react'
 import { getClient } from '@/lib/clients/queries'
+import { bucketDeadlines, listDeadlines } from '@/lib/deadlines/queries'
+import { DeadlineBuckets } from '@/components/deadlines/deadline-buckets'
 import { clientTypeLabel, formatDate, serviceLabel } from '@/lib/format'
 import { stateFromGstin } from '@/lib/validations/india'
 import { ClientHeaderActions } from '@/components/clients/client-header-actions'
@@ -34,6 +36,8 @@ export default async function ClientProfilePage(props: PageProps<'/clients/[id]'
   // RLS returns nothing for another CA's client, so "not found" and
   // "not yours" are indistinguishable here — which is the correct behaviour.
   if (!client) notFound()
+
+  const deadlines = await listDeadlines({ clientId: id, includeCompleted: true })
 
   return (
     <>
@@ -126,10 +130,11 @@ export default async function ClientProfilePage(props: PageProps<'/clients/[id]'
           </TabsList>
 
           <TabsContent value="deadlines">
-            <EmptyState
-              icon={CalendarClock}
-              title="No deadlines yet"
-              description="Compliance deadlines appear here once the tracker is switched on for this client."
+            <DeadlineBuckets
+              buckets={bucketDeadlines(deadlines)}
+              showClient={false}
+              emptyTitle="No deadlines yet"
+              emptyDescription="Tag this client with a service and their compliance calendar fills in automatically."
             />
           </TabsContent>
           <TabsContent value="documents">
