@@ -1,9 +1,11 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { AlertTriangle, CalendarClock, Users } from 'lucide-react'
+import { AlertTriangle, CalendarClock, Receipt, Users } from 'lucide-react'
 import { requireUser } from '@/lib/auth'
 import { createClient } from '@/lib/supabase/server'
 import { bucketDeadlines, listDeadlines } from '@/lib/deadlines/queries'
+import { feeTotals } from '@/lib/fees/queries'
+import { formatPaise } from '@/lib/format'
 import { DeadlineBuckets } from '@/components/deadlines/deadline-buckets'
 import { AddClientButton } from '@/components/clients/add-client-button'
 import { PageHeader } from '@/components/ui/page-header'
@@ -51,9 +53,10 @@ export default async function DashboardPage() {
   const user = await requireUser()
   const supabase = await createClient()
 
-  const [{ count: clientCount }, deadlines, { data: profile }] = await Promise.all([
+  const [{ count: clientCount }, deadlines, totals, { data: profile }] = await Promise.all([
     supabase.from('clients').select('id', { count: 'exact', head: true }).is('archived_at', null),
     listDeadlines(),
+    feeTotals(),
     supabase.from('profiles').select('firm_name').eq('id', user.id).maybeSingle(),
   ])
 
@@ -82,9 +85,9 @@ export default async function DashboardPage() {
         />
       ) : (
         <>
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <StatCard
-              label="Overdue"
+              label="Overdue filings"
               value={overdue}
               href="/deadlines"
               tone="alert"
@@ -92,6 +95,21 @@ export default async function DashboardPage() {
             />
             <StatCard label="Due in 7 days" value={thisWeek} href="/deadlines" icon={CalendarClock} />
             <StatCard label="Clients" value={clientCount ?? 0} href="/clients" icon={Users} />
+            <Link href="/fees?status=overdue" className="rounded-lg border p-4 transition-colors hover:bg-muted/50">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Receipt className="size-4" aria-hidden />
+                Fees overdue
+              </div>
+              <div
+                className={
+                  totals.overdue > 0
+                    ? 'mt-1 text-3xl font-semibold text-destructive'
+                    : 'mt-1 text-3xl font-semibold'
+                }
+              >
+                {formatPaise(totals.overdue)}
+              </div>
+            </Link>
           </div>
 
           <div className="space-y-2">

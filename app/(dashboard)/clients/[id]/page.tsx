@@ -1,10 +1,14 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { ArrowLeft, Receipt, Scale } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 import { getClient } from '@/lib/clients/queries'
 import { bucketDeadlines, listDeadlines } from '@/lib/deadlines/queries'
 import { listDocumentRequests, listDocuments } from '@/lib/documents/queries'
+import { listFees } from '@/lib/fees/queries'
+import { listNotices } from '@/lib/notices/queries'
+import { FeesView } from '@/components/fees/fees-view'
+import { NoticesList } from '@/components/notices/notices-list'
 import { createClient as createSupabaseClient } from '@/lib/supabase/server'
 import { requireUser } from '@/lib/auth'
 import { DocumentList, DocumentRequestList } from '@/components/documents/document-lists'
@@ -16,7 +20,6 @@ import { ClientHeaderActions } from '@/components/clients/client-header-actions'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { EmptyState } from '@/components/ui/empty-state'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 export async function generateMetadata(props: PageProps<'/clients/[id]'>): Promise<Metadata> {
@@ -44,10 +47,12 @@ export default async function ClientProfilePage(props: PageProps<'/clients/[id]'
 
   const user = await requireUser()
   const supabase = await createSupabaseClient()
-  const [deadlines, requests, documents, { data: profile }] = await Promise.all([
+  const [deadlines, requests, documents, fees, notices, { data: profile }] = await Promise.all([
     listDeadlines({ clientId: id, includeCompleted: true }),
     listDocumentRequests(id),
     listDocuments(id),
+    listFees({ clientId: id }),
+    listNotices(id),
     supabase.from('profiles').select('firm_name').eq('id', user.id).maybeSingle(),
   ])
 
@@ -161,19 +166,16 @@ export default async function ClientProfilePage(props: PageProps<'/clients/[id]'
             <DocumentRequestList requests={requests} showClient={false} />
             <DocumentList documents={documents} showClient={false} />
           </TabsContent>
-          <TabsContent value="fees">
-            <EmptyState
-              icon={Receipt}
-              title="No fees logged"
-              description="Track what this client has been invoiced and what they have paid."
+          <TabsContent value="fees" className="space-y-4">
+            <FeesView
+              fees={fees}
+              clients={[{ id: client.id, name: client.name }]}
+              showClient={false}
+              defaultClientId={client.id}
             />
           </TabsContent>
           <TabsContent value="notices">
-            <EmptyState
-              icon={Scale}
-              title="No notices yet"
-              description="IT and GST notices drafted for this client will be listed here."
-            />
+            <NoticesList notices={notices} showClient={false} />
           </TabsContent>
         </Tabs>
       </div>
