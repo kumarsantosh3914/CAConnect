@@ -31,9 +31,21 @@ local `.env.local` — they are not in this repo, deliberately.
 | `RESEND_FROM_EMAIL` | `onboarding@resend.dev` until a domain is verified |
 | `CRON_SECRET` | `.env.local` |
 
-**Leave `NEXT_PUBLIC_APP_URL` unset.** The app falls back to Vercel's stable
-production domain, so the client upload links are correct on the first deploy.
-Set it only once a custom domain exists; an explicit value always wins.
+**`NEXT_PUBLIC_APP_URL`** — leave unset ONLY if you have no custom domain.
+
+The app falls back to `VERCEL_PROJECT_PRODUCTION_URL`, which is what makes the
+first deploy work with no configuration. But that variable reports the
+`.vercel.app` alias, not your custom domain — and if that alias is not actually
+serving your project, every client upload link 404s while the site itself looks
+completely healthy.
+
+**The moment you attach a custom domain, set this explicitly:**
+
+    NEXT_PUBLIC_APP_URL=https://www.bevritti.in
+
+Then redeploy. Verify by creating a document request and reading the generated
+link: it must be your domain. This is the one setting whose failure is visible
+to your CA's client and invisible to you.
 
 Now hit **Deploy**.
 

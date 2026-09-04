@@ -6,13 +6,22 @@ import { cn } from '@/lib/utils'
  * Uses currentColor for the sheet so it inverts correctly on dark backgrounds,
  * and takes the tick from the surrounding surface.
  */
-export function LogoMark({ className }: { className?: string }) {
+export function LogoMark({
+  className,
+  /**
+   * Set to false when a visible wordmark sits beside the mark — otherwise
+   * assistive tech announces "CAConnect CAConnect".
+   */
+  labelled = true,
+}: {
+  className?: string
+  labelled?: boolean
+}) {
   return (
     <svg
       viewBox="0 0 32 32"
       className={cn('size-6 shrink-0', className)}
-      role="img"
-      aria-label="CAConnect"
+      {...(labelled ? { role: 'img', 'aria-label': 'CAConnect' } : { 'aria-hidden': true })}
     >
       <rect width="32" height="32" rx="7" className="fill-foreground" />
       <path
@@ -41,7 +50,7 @@ export function Logo({
 }) {
   return (
     <span className={cn('flex items-center gap-2 font-semibold tracking-tight', className)}>
-      <LogoMark className={markClassName} />
+      <LogoMark className={markClassName} labelled={false} />
       CAConnect
     </span>
   )
