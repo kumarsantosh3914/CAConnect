@@ -1,0 +1,30 @@
+FORM GST ASMT-10
+[See rule 99(1)]
+
+Reference No: ZA2409260041872
+Date: 02/09/2026
+
+To
+M/s RAMESH TRADERS
+GSTIN: 27ABCDE1234F1Z5
+14, Laxmi Market, Andheri East, Mumbai - 400069
+
+Notice for intimating discrepancies in the return after scrutiny
+
+Tax period: April 2025 to March 2026     Financial Year: 2025-26
+
+This is to inform that during scrutiny of the returns furnished by you for the tax period referred to above, the following discrepancies have been noticed:
+
+Sr. 1 - Difference in outward supply
+Taxable value declared in GSTR-1 exceeds the taxable value declared in GSTR-3B. Discrepancy amount: Rs. 4,82,650/-. Tax implication: IGST Rs. 0/-, CGST Rs. 43,438/-, SGST Rs. 43,438/-.
+
+Sr. 2 - Excess input tax credit availed
+Input tax credit availed in GSTR-3B exceeds the credit available as per GSTR-2B. Discrepancy amount: Rs. 1,17,900/-.
+
+Sr. 3 - Non-payment of interest
+Interest under section 50 on delayed payment of tax for the months of July 2025 and November 2025 has not been discharged.
+
+You are hereby directed to explain the reasons for the aforesaid discrepancies by 17/09/2026, failing which it is presumed that you have nothing to say in the matter and proceedings in accordance with law may be initiated against you without making any further reference to you in this behalf.
+
+Proper Officer
+State Tax Officer, Ward 401, Mumbai

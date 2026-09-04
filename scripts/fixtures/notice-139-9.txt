@@ -1,0 +1,34 @@
+INCOME TAX DEPARTMENT
+CENTRALISED PROCESSING CENTRE, BENGALURU
+
+Communication of proposed adjustment u/s 139(9) of the Income Tax Act, 1961
+
+Notice No: CPC/2627/G4/1188456721
+DIN: ITBA/CPC/S/139(9)/2026-27/1188456721(2)
+Date: 04/09/2026
+
+To,
+SUNITA TEXTILES
+PAN: AAAPZ1234C
+Plot 22, GIDC Estate, Surat - 395003
+
+Sir/Madam,
+
+Sub: Defective return u/s 139(9) for Assessment Year 2026-27 - reg.
+
+The return of income filed by you for Assessment Year 2026-27 vide acknowledgement number 448921336150826 dated 15/08/2026 has been considered defective for the reasons set out below.
+
+Error Code: 31
+Error Description: Taxpayer having income under the head "Profits and gains of Business or Profession" but has not filled Balance Sheet and Profit and Loss Account.
+Probable Resolution: The Part A of the Balance Sheet and Profit and Loss Account must be filled in the return.
+
+Error Code: 86
+Error Description: Deduction claimed under Chapter VI-A but gross total income is nil or negative.
+Probable Resolution: Verify the deduction claimed and the gross total income computed.
+
+You are required to rectify the above defect(s) within a period of 15 days from the date of receipt of this communication, i.e. on or before 19/09/2026, failing which the return of income shall be treated as invalid under section 139(9) of the Act.
+
+The response is to be submitted online through the e-filing portal under "e-File > Response to Notice u/s 139(9)".
+
+Yours faithfully,
+Deputy Commissioner of Income Tax, CPC, Bengaluru

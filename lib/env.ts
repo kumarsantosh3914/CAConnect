@@ -19,7 +19,7 @@ export const env = {
   supabaseServiceRoleKey: () =>
     required('SUPABASE_SERVICE_ROLE_KEY', process.env.SUPABASE_SERVICE_ROLE_KEY),
   openaiApiKey: () => required('OPENAI_API_KEY', process.env.OPENAI_API_KEY),
-  openaiModel: () => process.env.OPENAI_MODEL || 'gpt-5.6-terra',
+  openaiModel: () => process.env.OPENAI_MODEL || 'gpt-5.6-sol',
   resendApiKey: () => required('RESEND_API_KEY', process.env.RESEND_API_KEY),
   resendFrom: () => process.env.RESEND_FROM_EMAIL || 'CAConnect <onboarding@resend.dev>',
   cronSecret: () => required('CRON_SECRET', process.env.CRON_SECRET),

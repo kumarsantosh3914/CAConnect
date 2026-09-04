@@ -27,7 +27,8 @@ Phase 2 (later): Two-sided marketplace where users can find, compare, and book C
 - Auth: Supabase Auth (email + Google OAuth)
 - File Storage: Supabase Storage (for client documents)
 - AI: OpenAI via the Responses API, behind a provider abstraction in `lib/ai/`
-  - Model is set by the `OPENAI_MODEL` env var (default `gpt-5.6-terra`)
+  - Model is set by the `OPENAI_MODEL` env var (default `gpt-5.6-sol`, chosen
+    by benchmark — run `npm run compare-models` before changing it)
   - Never import the OpenAI SDK outside `lib/ai/` — call sites use `lib/ai/provider.ts`
   - We may switch to Claude later; the abstraction is what makes that a one-file change
 - Email: Resend (transactional emails and deadline reminders)
