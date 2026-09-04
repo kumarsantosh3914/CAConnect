@@ -59,6 +59,43 @@ function assessmentYear(dueYear: number, dueMonth1: number): string {
 }
 
 /**
+ * Which quarter a filing in a given month actually covers.
+ *
+ * Do NOT assume "the previous month" — the gap is not constant. TDS returns
+ * are due 15 Jul, 15 Oct, 15 Jan and 15 May, so three of them fall one month
+ * after the quarter ends but the Q4 return (Jan–Mar) falls two months after.
+ * Treating May as "April minus a month" labels it Q1 of the NEXT financial
+ * year, which collides with the July filing on
+ * (client_id, template_id, period_label) — and the upsert then silently drops
+ * one of the CA's real TDS deadlines.
+ *
+ * The reliable rule: find the most recent Indian FY quarter end (Jun, Sep,
+ * Dec, Mar) strictly before the filing month.
+ */
+function quarterCoveredByFiling(
+  filingYear: number,
+  filingMonth1: number
+): { quarter: number; financialYear: string } {
+  const QUARTER_ENDS = [3, 6, 9, 12]
+
+  let endMonth = 0
+  let endYear = filingYear
+  for (const candidate of QUARTER_ENDS) {
+    if (candidate < filingMonth1) endMonth = candidate
+  }
+  if (endMonth === 0) {
+    // Filing falls in January to March: the last completed quarter ended in
+    // December of the previous calendar year.
+    endMonth = 12
+    endYear = filingYear - 1
+  }
+
+  // Jun → Q1, Sep → Q2, Dec → Q3, Mar → Q4 (the Indian FY starts in April).
+  const quarter = Math.floor(((endMonth - 4 + 12) % 12) / 3) + 1
+  return { quarter, financialYear: financialYear(endYear, endMonth) }
+}
+
+/**
  * Expands one template into every occurrence between today and `horizonMonths`
  * ahead. Also looks back `lookbackMonths` so a CA onboarding mid-year still
  * sees the filings they are currently late on — the whole reason they signed up.
@@ -116,15 +153,10 @@ export function expandTemplate(
         const month1 = cursor.getMonth() + 1
         if (rule.months.includes(month1)) {
           const year = cursor.getFullYear()
-          // Quarter that just ended: the return filed 15 Jul covers Apr–Jun.
-          const quarterEnd = new Date(year, cursor.getMonth() - 1, 1)
-          const quarterNumber = Math.floor(((quarterEnd.getMonth() + 9) % 12) / 3) + 1
+          const { quarter, financialYear: fy } = quarterCoveredByFiling(year, month1)
           results.push({
             ...base,
-            period_label: `Q${quarterNumber} ${financialYear(
-              quarterEnd.getFullYear(),
-              quarterEnd.getMonth() + 1
-            )}`,
+            period_label: `Q${quarter} ${fy}`,
             due_date: toDateString(year, month1, rule.day),
           })
         }

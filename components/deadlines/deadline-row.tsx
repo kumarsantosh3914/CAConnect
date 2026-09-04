@@ -73,9 +73,12 @@ export function DeadlineRow({
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
           <span className="font-medium">{deadline.label}</span>
-          <Badge variant="outline" className="text-xs">
-            {serviceLabel(deadline.service_type)}
-          </Badge>
+          {/* GSTR-1's label already IS the service name — no point saying it twice. */}
+          {serviceLabel(deadline.service_type) !== deadline.label && (
+            <Badge variant="outline" className="text-xs">
+              {serviceLabel(deadline.service_type)}
+            </Badge>
+          )}
           <span className="text-xs text-muted-foreground">{deadline.period_label}</span>
         </div>
         {showClient && (

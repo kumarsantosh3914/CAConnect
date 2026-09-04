@@ -122,6 +122,9 @@ const STATUS_LABELS: Record<string, string> = {
   invoiced: 'Invoiced',
   paid: 'Paid',
   open: 'Open',
+  // Derived, not a stored status — but it still needs a label, or the badge
+  // renders the raw value in lowercase.
+  overdue: 'Overdue',
   completed: 'Completed',
   expired: 'Expired',
   reviewed: 'Reviewed',

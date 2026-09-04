@@ -3,6 +3,7 @@ import { requireUser } from '@/lib/auth'
 import { createClient } from '@/lib/supabase/server'
 import { SidebarNav } from '@/components/layout/sidebar-nav'
 import { UserMenu } from '@/components/layout/user-menu'
+import { Logo } from '@/components/brand/logo'
 
 export default async function DashboardLayout({ children }: LayoutProps<'/'>) {
   // proxy.ts already redirected signed-out visitors, but that is an optimistic
@@ -19,16 +20,16 @@ export default async function DashboardLayout({ children }: LayoutProps<'/'>) {
   return (
     <div className="flex min-h-svh">
       <aside className="hidden w-60 shrink-0 flex-col border-r bg-muted/20 p-4 md:flex">
-        <Link href="/dashboard" className="mb-6 px-3 text-lg font-semibold tracking-tight">
-          CAConnect
+        <Link href="/dashboard" className="mb-6 px-3">
+          <Logo className="text-lg" />
         </Link>
         <SidebarNav />
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex h-14 items-center justify-between gap-4 border-b px-4 md:px-6">
-          <Link href="/dashboard" className="font-semibold tracking-tight md:hidden">
-            CAConnect
+          <Link href="/dashboard" className="md:hidden">
+            <Logo />
           </Link>
           <div className="ml-auto">
             <UserMenu email={user.email ?? ''} firmName={profile?.firm_name ?? null} />
