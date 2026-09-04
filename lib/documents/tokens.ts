@@ -1,18 +1,13 @@
-import { randomBytes } from 'node:crypto'
+import { generateShareToken, isValidTokenFormat } from '@/lib/tokens'
 
 /**
- * The upload token is the ONLY credential the CA's client holds. It stands in
- * for a login, so it must be unguessable: 32 bytes of CSPRNG entropy, not a
- * uuid and never a sequential id.
+ * The upload token is the ONLY credential the CA's client holds. It is the
+ * shared share-token primitive from lib/tokens.ts — the client portal uses
+ * the same one, and they must not diverge.
  */
-export function generateUploadToken(): string {
-  return randomBytes(32).toString('base64url')
-}
+export const generateUploadToken = generateShareToken
 
-/** Cheap shape check before touching the database. */
-export function isValidTokenFormat(token: string): boolean {
-  return /^[A-Za-z0-9_-]{43}$/.test(token)
-}
+export { isValidTokenFormat }
 
 export const UPLOAD_LIMITS = {
   maxFileBytes: 10 * 1024 * 1024,

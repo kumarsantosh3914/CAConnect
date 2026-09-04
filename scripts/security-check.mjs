@@ -1,10 +1,10 @@
 /**
- * Security regression check for the anonymous document-upload route.
+ * Security regression check for CAConnect's anonymous, token-authenticated
+ * surfaces: the document-upload route and the client portal.
  *
- * app/api/upload/[token]/route.ts is the one place in CAConnect where
- * authorisation is a token rather than RLS, which makes it the highest-risk
- * file in V1. Run this after any change to that route, its helpers, or the
- * storage policies.
+ * These are the places where authorisation is a token rather than RLS, which
+ * makes them the highest-risk files in the codebase. Run this after any change
+ * to those routes, their helpers, or the storage policies.
  *
  *   npm run dev          # in one terminal
  *   node scripts/security-check.mjs
@@ -55,7 +55,8 @@ await admin.from('firm_members').insert({ firm_id: firm.id, user_id: ca.id, role
 
 const { data: client } = await admin
   .from('clients')
-  .insert({ firm_id: firm.id, created_by: ca.id, name: 'Security Check Client' })
+  // PAN is set so the portal test can assert it never crosses the boundary.
+  .insert({ firm_id: firm.id, created_by: ca.id, name: 'Security Check Client', pan: 'ABCDE1234F' })
   .select('id').single()
 
 // Two requests: one live, one already expired, plus an item on each
@@ -128,6 +129,89 @@ check('uploaded file NOT publicly readable', pub.status !== 200, `got ${pub.stat
 console.log('\n── RATE LIMITING ──')
 const burst = await Promise.all(Array.from({length:26}, () => post(liveToken, { name:'burst.pdf' })))
 check('burst of 26 uploads gets throttled', burst.some(r => r.status === 429), `statuses: ${[...new Set(burst.map(r=>r.status))].join(',')}`)
+
+console.log('\n── CLIENT PORTAL: TOKEN VALIDATION ──')
+const getPortal = async (t) => {
+  const r = await fetch(`${BASE}/portal/${t}`)
+  return { status: r.status, html: await r.text() }
+}
+const invalidCopy = (html) => html.includes('This link is not valid')
+
+check('malformed portal token shows the invalid-link page', invalidCopy((await getPortal('short')).html))
+check('unknown well-formed portal token shows the invalid-link page', invalidCopy((await getPortal(tok())).html))
+
+// A second client in the SAME firm, with its own document. The portal's
+// authorisation is the token, so the binding that matters is token -> client.
+const { data: otherClient } = await admin
+  .from('clients').insert({ firm_id: firm.id, created_by: ca.id, name: 'Other Client Of Same Firm' })
+  .select('id').single()
+const { data: otherDoc } = await admin.from('documents').insert({
+  firm_id: firm.id, client_id: otherClient.id, storage_path: `${firm.id}/${otherClient.id}/other.pdf`,
+  file_name: 'other.pdf', mime_type: 'application/pdf', size_bytes: 10, uploaded_by: 'ca',
+}).select('id').single()
+
+// Facts that must and must not cross the boundary.
+await admin.from('fees').insert([
+  { firm_id: firm.id, client_id: client.id, description: 'PORTAL-DRAFT-FEE', amount_paise: 500000, status: 'draft' },
+  { firm_id: firm.id, client_id: client.id, description: 'PORTAL-INVOICED-FEE', amount_paise: 250000, status: 'invoiced' },
+])
+await admin.from('notices').insert({
+  firm_id: firm.id, client_id: client.id, title: 'PORTAL-SECRET-NOTICE', notice_text: 'x',
+  draft_response: 'PORTAL-SECRET-DRAFT',
+})
+
+const portalToken = tok()
+const { data: portalRow } = await admin.from('client_portals').insert({
+  firm_id: firm.id, created_by: ca.id, client_id: client.id, token: portalToken,
+}).select('id').single()
+
+console.log('\n── CLIENT PORTAL: WHAT IT MAY SHOW ──')
+const page = await getPortal(portalToken)
+check('active portal renders for the right client', page.html.includes('Security Check Client'), `status ${page.status}`)
+check('portal shows an invoiced fee', page.html.includes('PORTAL-INVOICED-FEE'))
+check('portal NEVER shows a draft fee', !page.html.includes('PORTAL-DRAFT-FEE'))
+check('portal NEVER shows a notice', !page.html.includes('PORTAL-SECRET-NOTICE'))
+check('portal NEVER shows an AI notice draft', !page.html.includes('PORTAL-SECRET-DRAFT'))
+check("portal does not leak the client's PAN", !page.html.includes('ABCDE1234F'))
+
+console.log('\n── CLIENT PORTAL: DOCUMENT BINDING ──')
+const docFetch = async (t, id) => (await fetch(`${BASE}/api/portal/${t}/document/${id}`, { redirect: 'manual' })).status
+check('portal serves its own client\'s document', [302,307].includes(await docFetch(portalToken, doc.id)))
+check("portal REFUSES another client's document", (await docFetch(portalToken, otherDoc.id)) === 404)
+check('portal document route rejects a garbage id', (await docFetch(portalToken, '00000000-0000-0000-0000-000000000000')) === 404)
+check('unknown portal token cannot fetch any document', (await docFetch(tok(), doc.id)) === 404)
+
+console.log('\n── CLIENT PORTAL: REVOCATION ──')
+await admin.from('client_portals').update({ is_active: false }).eq('id', portalRow.id)
+check('revoked portal shows the invalid-link page', invalidCopy((await getPortal(portalToken)).html))
+check('revoked portal cannot fetch documents either', (await docFetch(portalToken, doc.id)) === 404)
+await admin.from('client_portals').update({ is_active: true }).eq('id', portalRow.id)
+
+console.log('\n── CLIENT PORTAL: ANONYMOUS DB ACCESS ──')
+const r3 = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/client_portals?select=token`, { headers:{apikey:anonKey, Authorization:'Bearer '+anonKey}})
+const t3 = await r3.json()
+check('anon cannot list client_portals (no token leak)', Array.isArray(t3) && t3.length === 0, JSON.stringify(t3).slice(0,60))
+
+console.log('\n── CLIENT PORTAL: CROSS-FIRM WRITE ──')
+// A real second firm, and a signed-in session for our scratch CA. The hole
+// being tested: firm_id comes from MY session, so only the client_id check in
+// the policy stops me minting a portal onto a stranger's client.
+const { data: firm2 } = await admin.from('firms').insert({ name: 'Other Firm' }).select('id').single()
+const { data: client2 } = await admin.from('clients')
+  .insert({ firm_id: firm2.id, name: 'Client Of Other Firm' }).select('id').single()
+
+const session = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, anonKey, {auth:{persistSession:false}})
+const { error: signInErr } = await session.auth.signInWithPassword({ email: scratchEmail, password: 'SecCheckPass123!' })
+check('scratch CA can sign in (session tests are meaningful)', !signInErr, signInErr?.message ?? '')
+
+const { error: crossErr } = await session.from('client_portals')
+  .insert({ firm_id: firm.id, client_id: client2.id, token: tok() })
+check("RLS blocks minting a portal onto another firm's client", !!crossErr, crossErr?.code ?? 'NO ERROR — HOLE OPEN')
+
+const { data: seenPortals } = await session.from('client_portals').select('token').eq('client_id', client2.id)
+check("cannot read another firm's portal row", (seenPortals ?? []).length === 0)
+
+await admin.from('firms').delete().eq('id', firm2.id)
 
 // Cleanup: remove every artefact this run created, and nothing else.
 const { data: ourDocs } = await admin.from('documents').select('storage_path').eq('firm_id', firm.id)

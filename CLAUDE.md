@@ -7,8 +7,9 @@
 V1 is built, deployed, and live at https://www.bevritti.in (Vercel + Supabase,
 ap-southeast-1). All 5 core features, dashboard, email reminder cron, onboarding,
 marketing pages, Google sign-in, and plan limits are in place. RLS verified
-under attack, 29 unit tests on the deadline engine, a 21-assertion security
-suite for the anonymous upload route (`npm run security-check`).
+under attack, 42 unit tests, and a 39-assertion security suite covering both
+token-authenticated anonymous surfaces — the upload route and the client
+portal (`npm run security-check`, needs `npm run dev` running).
 
 **Open item — config, not code:** Resend can only send to the account owner's
 own address until a domain is verified at resend.com/domains. Use
@@ -21,10 +22,11 @@ code.
 Two Definition of Done criteria from the build plan are go-to-market, not
 buildable: 20 CAs actively using it, and 5 saying they would pay.
 
-**Current phase:** V2, team & retention features. Features 1-3 (AI Client
-Email Drafter, firm/staff data model, staff task assignment) are done. Next up:
-the client portal. See "V2 Roadmap" below for what's in scope, what's deferred,
-and why.
+**Current phase:** V2, team & retention features. All four features (AI Client
+Email Drafter, firm/staff data model, staff task assignment, client portal) are
+done. What remains in V2 is the WhatsApp Business API integration, which is
+gated on Meta's external approval. See "V2 Roadmap" below for what was in
+scope, what is deferred, and why.
 
 ## What We Are Building
 CAConnect is an AI-powered practice management tool for small Indian CA firms (1-5 people).
@@ -176,11 +178,44 @@ Do not build them until the DoD criteria above are met. Revisit then.
    covers removal (`scripts/migration-dryrun/03_invites.sql`) — it did not
    before, which is why this reached production.
 
-4. **Client Portal** — NEXT. Reuses the exact token-auth pattern already built and
-   security-tested for document uploads: `lib/documents/tokens.ts`'s 32-byte
-   CSPRNG tokens and the `/upload/[token]` public route group. Same shape,
-   read-only, persistent instead of one-time — a client's link shows filing
-   status, documents, and fees rather than accepting one upload.
+4. **Client Portal** — DONE (2026-09-05), migration 0009, applied to production
+   and verified live. One permanent read-only link per client at
+   `/portal/[token]`, managed from a "Portal" tab on the client profile.
+
+   The token primitive now lives in `lib/tokens.ts` (`generateShareToken`,
+   `isValidTokenFormat`) and is shared with document uploads —
+   `lib/documents/tokens.ts` re-exports it so no upload call site changed. Two
+   generators would drift, and the weaker one becomes the way in.
+
+   `lib/portal/public.ts` is the FOURTH and last service-role call site, for
+   the same reason as the other anonymous surface: no `auth.uid()` exists, so
+   the token is the credential. Its header lists what the portal may show and
+   what it must not. The exclusions are deliberate, not oversights: **draft
+   fees** (the CA's own unsent figure), **notices and their AI drafts** (work
+   product, and an unreviewed draft in a client's hands is actively harmful),
+   internal notes, PAN/GSTIN, and which staff member is assigned. Every query
+   is an allow-list of columns, so a column added to `fees` later cannot
+   silently surface on a client-facing page.
+
+   Two things worth knowing before changing this:
+
+   - The `client_portals_all_firm` policy checks `client_id in (select id from
+     clients)` on top of the usual `firm_id` test. That second clause is not
+     redundant — `firm_id` comes from the caller's own session, so a row
+     pairing MY firm with ANOTHER firm's client passes the firm test and would
+     mint a working portal onto a stranger's client. Do not route it through a
+     `security definer` helper; the point is that RLS on `clients` applies.
+   - Recording a view goes INSIDE the page's `Promise.all`. A supabase-js
+     builder is a thenable that only issues its request when awaited, so
+     `void admin.rpc(...)` built a query and sent nothing — the CA saw "Not
+     opened yet" forever, which is the one question the feature exists to
+     answer.
+
+   Revocation is `is_active = false`, not an `expires_at`; a portal is a
+   standing window, not a task with an end. `client_id` is unique, so
+   "New link" updates the token in place — an insert-instead-of-update would
+   leave the old link alive, and a revocation that does not revoke is worse
+   than none. Re-enabling a revoked portal always mints a fresh token.
 
 **WhatsApp Integration** (the real Meta Business API, not the `wa.me`
 prefilled links already shipped in `components/documents/share-link-dialog.tsx`)
@@ -198,6 +233,7 @@ code integration happens last, after approval clears.
 - document_requests / document_request_items / documents: document collection
 - fees: fee records per client per service (amounts in paise, never floats)
 - notices: IT notice text + AI-drafted responses
+- client_portals: one persistent read-only link per client (V2)
 
 ## Coding Rules
 - Always use TypeScript — no JavaScript files
@@ -205,9 +241,11 @@ code integration happens last, after approval clears.
   - The ONLY exception is the anonymous client-upload flow, which cannot
     satisfy `user_id = auth.uid()` because the client has no account:
     `app/api/upload/[token]/route.ts` and `lib/documents/public.ts`.
-    The scheduled reminder job `app/api/cron/reminders/route.ts` is the third
-    and last, since a cron run has no user either; it is guarded by CRON_SECRET.
-    Those are the only service-role call sites. Do not add others — if RLS
+    The scheduled reminder job `app/api/cron/reminders/route.ts` is the third,
+    since a cron run has no user either; it is guarded by CRON_SECRET. The
+    fourth is `lib/portal/public.ts` (with `app/api/portal/[token]/document/[id]`),
+    the client portal — same anonymous, token-as-credential shape as uploads.
+    Those four are the only service-role call sites. Do not add others — if RLS
     is blocking you elsewhere, the policy or the query is wrong.
   - Signed URLs for private storage use the CA's own session, not admin;
     the storage policies already scope them to their user_id prefix.
@@ -234,6 +272,7 @@ app/(marketing)/      → Public landing, pricing, how-it-works
 app/(auth)/           → Login/signup pages
 app/(dashboard)/      → Protected CA dashboard pages
 app/upload/[token]/   → Public client upload page (no login)
+app/portal/[token]/   → Public client portal, read-only (no login)
 app/api/              → API routes
 components/           → Reusable UI components
 components/ui/        → shadcn/ui base components

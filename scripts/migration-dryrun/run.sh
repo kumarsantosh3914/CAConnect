@@ -37,5 +37,6 @@ grant all on all tables in schema storage to anon, authenticated, service_role;"
 
 echo; echo "════ RLS ════"; show "$HERE/02_rls.sql"
 echo; echo "════ INVITES ════"; show "$HERE/03_invites.sql"
+echo; echo "════ PORTAL ════"; show "$HERE/04_portal.sql"
 
 docker rm -f "$C" >/dev/null 2>&1

@@ -165,6 +165,20 @@ export type DocumentRequestRow = {
   updated_at: string
 }
 
+/** One persistent read-only link per client. See 0009_client_portal.sql. */
+export type ClientPortalRow = {
+  id: string
+  firm_id: string
+  created_by: string | null
+  client_id: string
+  token: string
+  is_active: boolean
+  last_viewed_at: string | null
+  view_count: number
+  created_at: string
+  updated_at: string
+}
+
 export type DocumentRequestItemRow = {
   id: string
   firm_id: string
@@ -322,6 +336,12 @@ export type Database = {
         Update: Partial<DocumentRequestRow>
         Relationships: ClientFk
       }
+      client_portals: {
+        Row: ClientPortalRow
+        Insert: Insertable<ClientPortalRow, 'firm_id' | 'client_id' | 'token'>
+        Update: Partial<ClientPortalRow>
+        Relationships: ClientFk
+      }
       document_request_items: {
         Row: DocumentRequestItemRow
         Insert: Insertable<DocumentRequestItemRow, 'firm_id' | 'request_id' | 'label'>
@@ -371,6 +391,7 @@ export type Database = {
         Returns: { firm_name: string | null; role: FirmRole; email: string }[]
       }
       accept_firm_invite: { Args: { invite_token: string }; Returns: string }
+      touch_client_portal: { Args: { portal_id: string }; Returns: undefined }
     }
     Enums: {
       service_type: ServiceType

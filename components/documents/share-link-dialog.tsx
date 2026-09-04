@@ -19,6 +19,10 @@ import { Input } from '@/components/ui/input'
  * prefilled wa.me message, not a copy button the CA has to paste somewhere.
  * This is the "send a document link over WhatsApp" milestone from the build
  * plan, and it has to be one tap.
+ *
+ * Shared by document requests and client portals. The default message is the
+ * upload one; `message` overrides it wholesale, because a portal link needs
+ * different words ("here is your filing status", not "please upload").
  */
 export function ShareLinkDialog({
   open,
@@ -28,6 +32,8 @@ export function ShareLinkDialog({
   clientPhone,
   title,
   firmName,
+  message: messageOverride,
+  description,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -36,10 +42,12 @@ export function ShareLinkDialog({
   clientPhone: string | null
   title: string
   firmName: string | null
+  message?: string
+  description?: string
 }) {
   const [copied, setCopied] = useState(false)
 
-  const message = [
+  const message = messageOverride ?? [
     `Hello ${clientName},`,
     '',
     `Please upload the documents for ${title} using this secure link:`,
@@ -77,7 +85,7 @@ export function ShareLinkDialog({
         <DialogHeader>
           <DialogTitle>Send this to {clientName}</DialogTitle>
           <DialogDescription>
-            They can upload from their phone — no account, no app.
+            {description ?? 'They can upload from their phone — no account, no app.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -101,7 +109,7 @@ export function ShareLinkDialog({
           <div className="space-y-2">
             <p className="text-sm font-medium">Or copy the link</p>
             <div className="flex gap-2">
-              <Input readOnly value={url} className="font-mono text-xs" aria-label="Upload link" />
+              <Input readOnly value={url} className="font-mono text-xs" aria-label="Share link" />
               <Button variant="outline" size="icon" onClick={() => copy(url, 'Link')}>
                 {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
                 <span className="sr-only">Copy link</span>

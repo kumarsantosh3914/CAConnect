@@ -8,6 +8,8 @@ import { listDocumentRequests, listDocuments } from '@/lib/documents/queries'
 import { listFees } from '@/lib/fees/queries'
 import { listNotices } from '@/lib/notices/queries'
 import { listClientEmails } from '@/lib/client-emails/queries'
+import { getClientPortal } from '@/lib/portal/queries'
+import { requestOrigin } from '@/lib/url'
 import { listTeamMembers } from '@/lib/team/queries'
 import { toAssignable } from '@/lib/team/assignable'
 import { ClientEmailList } from '@/components/client-emails/email-list'
@@ -17,6 +19,7 @@ import { requireFirm } from '@/lib/auth'
 import { DocumentList, DocumentRequestList } from '@/components/documents/document-lists'
 import { RequestDocumentsButton } from '@/components/documents/request-documents-button'
 import { DeadlineBuckets } from '@/components/deadlines/deadline-buckets'
+import { PortalCard } from '@/components/portal/portal-card'
 import { clientTypeLabel, formatDate, serviceLabel } from '@/lib/format'
 import { stateFromGstin } from '@/lib/validations/india'
 import { ClientHeaderActions } from '@/components/clients/client-header-actions'
@@ -49,15 +52,18 @@ export default async function ClientProfilePage(props: PageProps<'/clients/[id]'
   if (!client) notFound()
 
   const { user, firm } = await requireFirm()
-  const [deadlines, requests, documents, fees, notices, emails, teamMembers] = await Promise.all([
-    listDeadlines({ clientId: id, includeCompleted: true }),
-    listDocumentRequests(id),
-    listDocuments(id),
-    listFees({ clientId: id }),
-    listNotices(id),
-    listClientEmails(id),
-    listTeamMembers(firm.firmId),
-  ])
+  const [deadlines, requests, documents, fees, notices, emails, teamMembers, portal, origin] =
+    await Promise.all([
+      listDeadlines({ clientId: id, includeCompleted: true }),
+      listDocumentRequests(id),
+      listDocuments(id),
+      listFees({ clientId: id }),
+      listNotices(id),
+      listClientEmails(id),
+      listTeamMembers(firm.firmId),
+      getClientPortal(id),
+      requestOrigin(),
+    ])
   const members = toAssignable(teamMembers, user.id)
 
   return (
@@ -149,6 +155,7 @@ export default async function ClientProfilePage(props: PageProps<'/clients/[id]'
             <TabsTrigger value="fees">Fees</TabsTrigger>
             <TabsTrigger value="notices">Notices</TabsTrigger>
             <TabsTrigger value="emails">Emails</TabsTrigger>
+            <TabsTrigger value="portal">Portal</TabsTrigger>
           </TabsList>
 
           <TabsContent value="deadlines">
@@ -194,6 +201,24 @@ export default async function ClientProfilePage(props: PageProps<'/clients/[id]'
               </Button>
             </div>
             <ClientEmailList emails={emails} showClient={false} />
+          </TabsContent>
+          <TabsContent value="portal">
+            <PortalCard
+              clientId={client.id}
+              clientName={client.name}
+              clientPhone={client.phone}
+              firmName={firm.name}
+              portal={
+                portal
+                  ? {
+                      url: `${origin}/portal/${portal.token}`,
+                      isActive: portal.is_active,
+                      lastViewedAt: portal.last_viewed_at,
+                      viewCount: portal.view_count,
+                    }
+                  : null
+              }
+            />
           </TabsContent>
         </Tabs>
       </div>
