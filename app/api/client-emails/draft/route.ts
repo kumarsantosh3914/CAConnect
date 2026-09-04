@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server'
-import { getApiUser } from '@/lib/auth'
+import { getApiFirm } from '@/lib/auth'
 import { createClient } from '@/lib/supabase/server'
 import { getAiProvider, AiError } from '@/lib/ai/provider'
 import { checkAiGuards } from '@/lib/ai/guard'
@@ -14,10 +14,11 @@ const TOPICS: ClientEmailTopic[] = ['deadline_reminder', 'document_followup', 'f
 
 export async function POST(request: NextRequest) {
   // Auth before any work at all, per CLAUDE.md.
-  const user = await getApiUser()
-  if (!user) {
+  const ctx = await getApiFirm()
+  if (!ctx) {
     return NextResponse.json({ error: 'Your session has expired. Please log in again.' }, { status: 401 })
   }
+  const { user, firm } = ctx
 
   let body: {
     emailId?: string
@@ -45,7 +46,7 @@ export async function POST(request: NextRequest) {
 
   const supabase = await createClient()
 
-  const guard = await checkAiGuards(supabase, user.id)
+  const guard = await checkAiGuards(supabase, user.id, firm)
   if (!guard.ok) return NextResponse.json({ error: guard.error }, { status: guard.status })
 
   // Client name is looked up through RLS, so a CA cannot pull another firm's

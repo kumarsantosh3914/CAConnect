@@ -93,7 +93,7 @@ export async function POST(request: NextRequest, context: RouteContext<'/api/upl
 
   const { data: uploadRequest, error: lookupError } = await admin
     .from('document_requests')
-    .select('id,user_id,client_id,status,expires_at')
+    .select('id,firm_id,client_id,status,expires_at')
     .eq('token', token)
     .maybeSingle()
 
@@ -155,10 +155,10 @@ export async function POST(request: NextRequest, context: RouteContext<'/api/upl
     itemId = item.id
   }
 
-  // Path is built server-side from the OWNING CA's id, never from the form,
+  // Path is built server-side from the OWNING FIRM's id, never from the form,
   // so an upload cannot land in another tenant's prefix.
   const fileName = sanitizeFileName(file.name)
-  const storagePath = `${uploadRequest.user_id}/${uploadRequest.client_id}/${randomUUID()}-${fileName}`
+  const storagePath = `${uploadRequest.firm_id}/${uploadRequest.client_id}/${randomUUID()}-${fileName}`
 
   const { error: storageError } = await admin.storage
     .from('client-documents')
@@ -172,7 +172,9 @@ export async function POST(request: NextRequest, context: RouteContext<'/api/upl
   const { data: document, error: insertError } = await admin
     .from('documents')
     .insert({
-      user_id: uploadRequest.user_id,
+      firm_id: uploadRequest.firm_id,
+      // No created_by: an anonymous client uploaded this, not a firm member.
+      created_by: null,
       client_id: uploadRequest.client_id,
       request_id: uploadRequest.id,
       item_id: itemId,

@@ -11,8 +11,7 @@ import { listClientEmails } from '@/lib/client-emails/queries'
 import { ClientEmailList } from '@/components/client-emails/email-list'
 import { FeesView } from '@/components/fees/fees-view'
 import { NoticesList } from '@/components/notices/notices-list'
-import { createClient as createSupabaseClient } from '@/lib/supabase/server'
-import { requireUser } from '@/lib/auth'
+import { requireFirm } from '@/lib/auth'
 import { DocumentList, DocumentRequestList } from '@/components/documents/document-lists'
 import { RequestDocumentsButton } from '@/components/documents/request-documents-button'
 import { DeadlineBuckets } from '@/components/deadlines/deadline-buckets'
@@ -47,16 +46,14 @@ export default async function ClientProfilePage(props: PageProps<'/clients/[id]'
   // "not yours" are indistinguishable here — which is the correct behaviour.
   if (!client) notFound()
 
-  const user = await requireUser()
-  const supabase = await createSupabaseClient()
-  const [deadlines, requests, documents, fees, notices, emails, { data: profile }] = await Promise.all([
+  const { firm } = await requireFirm()
+  const [deadlines, requests, documents, fees, notices, emails] = await Promise.all([
     listDeadlines({ clientId: id, includeCompleted: true }),
     listDocumentRequests(id),
     listDocuments(id),
     listFees({ clientId: id }),
     listNotices(id),
     listClientEmails(id),
-    supabase.from('profiles').select('firm_name').eq('id', user.id).maybeSingle(),
   ])
 
   return (
@@ -163,14 +160,14 @@ export default async function ClientProfilePage(props: PageProps<'/clients/[id]'
               <RequestDocumentsButton
                 clients={[{ id: client.id, name: client.name, phone: client.phone }]}
                 defaultClientId={client.id}
-                firmName={profile?.firm_name ?? null}
+                firmName={firm.name}
                 label="Request documents"
               />
             </div>
             <DocumentRequestList
               requests={requests}
               showClient={false}
-              firmName={profile?.firm_name ?? null}
+              firmName={firm.name}
             />
             <DocumentList documents={documents} showClient={false} />
           </TabsContent>

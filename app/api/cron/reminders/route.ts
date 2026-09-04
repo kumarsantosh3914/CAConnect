@@ -51,20 +51,20 @@ export async function GET(request: NextRequest) {
 
   const admin = createAdminClient()
 
-  // There is no foreign key from deadlines.user_id to profiles (it references
-  // auth.users), so PostgREST cannot join them. Load firm names once and map.
-  const { data: profiles } = await admin.from('profiles').select('id,firm_name')
-  const firmNames = new Map((profiles ?? []).map((p) => [p.id, p.firm_name]))
+  // Firm names for the email signature. A single lookup keyed by firm id,
+  // which is what the domain rows now carry.
+  const { data: firms } = await admin.from('firms').select('id,name')
+  const firmNames = new Map((firms ?? []).map((f) => [f.id, f.name]))
 
   const sent: string[] = []
   const skipped: string[] = []
   const failed: string[] = []
 
   /** Claims a send. Returns false if this exact email already went out. */
-  async function claim(kind: string, subjectId: string, variant: string, userId: string, recipient: string) {
+  async function claim(kind: string, subjectId: string, variant: string, firmId: string, recipient: string) {
     const { error } = await admin
       .from('email_log')
-      .insert({ kind, subject_id: subjectId, variant, user_id: userId, recipient })
+      .insert({ kind, subject_id: subjectId, variant, firm_id: firmId, recipient })
     // 23505 = unique violation = already sent. Anything else is a real error.
     return !error
   }
@@ -75,7 +75,7 @@ export async function GET(request: NextRequest) {
 
   const { data: deadlines } = await admin
     .from('deadlines')
-    .select('id,user_id,label,period_label,due_date,status,clients(name,email)')
+    .select('id,firm_id,label,period_label,due_date,status,clients(name,email)')
     .in('status', ['pending', 'in_progress'])
     .gte('due_date', new Date().toISOString().slice(0, 10))
     .lte('due_date', horizon.toISOString().slice(0, 10))
@@ -90,12 +90,12 @@ export async function GET(request: NextRequest) {
     const variant = days <= 1 ? 't-1' : days <= 7 ? 't-7' : null
     if (!variant) continue
 
-    if (!(await claim('deadline', deadline.id, variant, deadline.user_id, email))) {
+    if (!(await claim('deadline', deadline.id, variant, deadline.firm_id, email))) {
       skipped.push(`deadline ${deadline.id} (${variant}): already sent`)
       continue
     }
 
-    const firmName = firmNames.get(deadline.user_id) ?? 'Your CA'
+    const firmName = firmNames.get(deadline.firm_id) ?? 'Your CA'
     const { subject, html } = deadlineReminderEmail({
       clientName: deadline.clients?.name ?? 'Client',
       firmName,
@@ -125,7 +125,7 @@ export async function GET(request: NextRequest) {
 
   const { data: requests } = await admin
     .from('document_requests')
-    .select('id,user_id,title,token,created_at,expires_at,clients(name,email),document_request_items(label,is_required,fulfilled_document_id)')
+    .select('id,firm_id,title,token,created_at,expires_at,clients(name,email),document_request_items(label,is_required,fulfilled_document_id)')
     .eq('status', 'open')
     .lte('created_at', idleSince.toISOString())
     .gt('expires_at', new Date().toISOString())
@@ -147,14 +147,14 @@ export async function GET(request: NextRequest) {
     )
     const variant = `nudge-${week}`
 
-    if (!(await claim('document_request', req.id, variant, req.user_id, email))) {
+    if (!(await claim('document_request', req.id, variant, req.firm_id, email))) {
       skipped.push(`request ${req.id} (${variant}): already sent`)
       continue
     }
 
     const { subject, html } = documentNudgeEmail({
       clientName: req.clients?.name ?? 'Client',
-      firmName: firmNames.get(req.user_id) ?? 'Your CA',
+      firmName: firmNames.get(req.firm_id) ?? 'Your CA',
       title: req.title,
       outstanding,
       uploadUrl: `${env.appUrl()}/upload/${req.token}`,

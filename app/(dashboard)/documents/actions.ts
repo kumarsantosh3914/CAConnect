@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
-import { getApiUser } from '@/lib/auth'
+import { getApiFirm } from '@/lib/auth'
 import { generateUploadToken } from '@/lib/documents/tokens'
 import { requestOrigin } from '@/lib/url'
 
@@ -31,8 +31,9 @@ export type DocumentRequestInput = z.infer<typeof requestSchema>
 export async function createDocumentRequest(
   input: DocumentRequestInput
 ): Promise<DocumentActionResult> {
-  const user = await getApiUser()
-  if (!user) return { ok: false, error: 'Your session has expired. Please log in again.' }
+  const ctx = await getApiFirm()
+  if (!ctx) return { ok: false, error: 'Your session has expired. Please log in again.' }
+  const { user, firm } = ctx
 
   const parsed = requestSchema.safeParse(input)
   if (!parsed.success) {
@@ -46,7 +47,8 @@ export async function createDocumentRequest(
   const { data: created, error } = await supabase
     .from('document_requests')
     .insert({
-      user_id: user.id,
+      firm_id: firm.firmId,
+    created_by: user.id,
       client_id: parsed.data.client_id,
       token: generateUploadToken(),
       title: parsed.data.title,
@@ -62,7 +64,8 @@ export async function createDocumentRequest(
 
   const { error: itemsError } = await supabase.from('document_request_items').insert(
     parsed.data.items.map((item, index) => ({
-      user_id: user.id,
+      firm_id: firm.firmId,
+    created_by: user.id,
       request_id: created.id,
       label: item.label,
       is_required: item.is_required,
@@ -90,8 +93,8 @@ export async function createDocumentRequest(
 export async function expireDocumentRequest(
   requestId: string
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  const user = await getApiUser()
-  if (!user) return { ok: false, error: 'Your session has expired. Please log in again.' }
+  const ctx = await getApiFirm()
+  if (!ctx) return { ok: false, error: 'Your session has expired. Please log in again.' }
 
   const supabase = await createClient()
   const { error } = await supabase
@@ -116,8 +119,8 @@ export async function expireDocumentRequest(
 export async function getDocumentUrl(
   documentId: string
 ): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
-  const user = await getApiUser()
-  if (!user) return { ok: false, error: 'Your session has expired. Please log in again.' }
+  const ctx = await getApiFirm()
+  if (!ctx) return { ok: false, error: 'Your session has expired. Please log in again.' }
 
   const supabase = await createClient()
   const { data: document, error } = await supabase

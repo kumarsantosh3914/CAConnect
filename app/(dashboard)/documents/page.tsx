@@ -1,6 +1,5 @@
 import type { Metadata } from 'next'
-import { requireUser } from '@/lib/auth'
-import { createClient } from '@/lib/supabase/server'
+import { requireFirm } from '@/lib/auth'
 import { listDocumentRequests, listDocuments } from '@/lib/documents/queries'
 import { listClients } from '@/lib/clients/queries'
 import { RequestDocumentsButton } from '@/components/documents/request-documents-button'
@@ -11,14 +10,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 export const metadata: Metadata = { title: 'Documents' }
 
 export default async function DocumentsPage() {
-  const user = await requireUser()
-  const supabase = await createClient()
+  const { firm } = await requireFirm()
 
-  const [requests, documents, clients, { data: profile }] = await Promise.all([
+  const [requests, documents, clients] = await Promise.all([
     listDocumentRequests(),
     listDocuments(),
     listClients(),
-    supabase.from('profiles').select('firm_name').eq('id', user.id).maybeSingle(),
   ])
 
   const openRequests = requests.filter((request) => request.status === 'open').length
@@ -35,7 +32,7 @@ export default async function DocumentsPage() {
         action={
           <RequestDocumentsButton
             clients={clients.map((c) => ({ id: c.id, name: c.name, phone: c.phone }))}
-            firmName={profile?.firm_name ?? null}
+            firmName={firm.name}
           />
         }
       />
@@ -46,7 +43,7 @@ export default async function DocumentsPage() {
           <TabsTrigger value="files">Files ({documents.length})</TabsTrigger>
         </TabsList>
         <TabsContent value="requests">
-          <DocumentRequestList requests={requests} firmName={profile?.firm_name ?? null} />
+          <DocumentRequestList requests={requests} firmName={firm.name} />
         </TabsContent>
         <TabsContent value="files">
           <DocumentList documents={documents} />

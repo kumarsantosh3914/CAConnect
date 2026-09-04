@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
-import { getApiUser } from '@/lib/auth'
+import { getApiFirm } from '@/lib/auth'
 import { SERVICE_TYPES } from '@/lib/validations/client'
 import type { DeadlineStatus } from '@/types/database'
 
@@ -15,8 +15,8 @@ export async function updateDeadlineStatus(
   deadlineId: string,
   status: DeadlineStatus
 ): Promise<DeadlineActionResult> {
-  const user = await getApiUser()
-  if (!user) return { ok: false, error: 'Your session has expired. Please log in again.' }
+  const ctx = await getApiFirm()
+  if (!ctx) return { ok: false, error: 'Your session has expired. Please log in again.' }
   if (!STATUSES.includes(status)) return { ok: false, error: 'That status is not valid.' }
 
   const supabase = await createClient()
@@ -54,8 +54,9 @@ export type ManualDeadlineInput = z.infer<typeof manualDeadlineSchema>
 export async function createManualDeadline(
   input: ManualDeadlineInput
 ): Promise<DeadlineActionResult> {
-  const user = await getApiUser()
-  if (!user) return { ok: false, error: 'Your session has expired. Please log in again.' }
+  const ctx = await getApiFirm()
+  if (!ctx) return { ok: false, error: 'Your session has expired. Please log in again.' }
+  const { user, firm } = ctx
 
   const parsed = manualDeadlineSchema.safeParse(input)
   if (!parsed.success) {
@@ -64,7 +65,8 @@ export async function createManualDeadline(
 
   const supabase = await createClient()
   const { error } = await supabase.from('deadlines').insert({
-    user_id: user.id,
+    firm_id: firm.firmId,
+    created_by: user.id,
     client_id: parsed.data.client_id,
     template_id: null,
     service_type: parsed.data.service_type,
@@ -84,8 +86,8 @@ export async function createManualDeadline(
 }
 
 export async function deleteDeadline(deadlineId: string): Promise<DeadlineActionResult> {
-  const user = await getApiUser()
-  if (!user) return { ok: false, error: 'Your session has expired. Please log in again.' }
+  const ctx = await getApiFirm()
+  if (!ctx) return { ok: false, error: 'Your session has expired. Please log in again.' }
 
   const supabase = await createClient()
   const { error } = await supabase.from('deadlines').delete().eq('id', deadlineId)

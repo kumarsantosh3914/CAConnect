@@ -16,7 +16,7 @@ import type { ServiceType } from '@/types/database'
  *      Anything filed, in progress, or overdue stays — it is history, and a
  *      CA who mis-clicks a checkbox should not lose their record of it.
  */
-export async function syncClientDeadlines(clientId: string, userId: string) {
+export async function syncClientDeadlines(clientId: string, firmId: string, userId: string) {
   const supabase = await createClient()
 
   const { data: client, error: clientError } = await supabase
@@ -53,7 +53,8 @@ export async function syncClientDeadlines(clientId: string, userId: string) {
       .from('deadlines')
       .upsert(
         generated.map((d) => ({
-          user_id: userId,
+          firm_id: firmId,
+          created_by: userId,
           client_id: clientId,
           template_id: d.template_id,
           service_type: d.service_type,

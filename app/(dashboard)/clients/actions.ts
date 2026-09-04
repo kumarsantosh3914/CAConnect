@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
-import { getApiUser } from '@/lib/auth'
+import { getApiFirm } from '@/lib/auth'
 import { clientSchema, normalizeClient } from '@/lib/validations/client'
 import { syncClientDeadlines } from '@/lib/deadlines/sync'
 import { clientLimitMessage, planLimits } from '@/lib/plans'
@@ -37,8 +37,9 @@ export async function saveClient(
   clientId?: string
 ): Promise<ActionResult> {
   // Auth before any DB work, per CLAUDE.md.
-  const user = await getApiUser()
-  if (!user) return { ok: false, error: 'Your session has expired. Please log in again.' }
+  const ctx = await getApiFirm()
+  if (!ctx) return { ok: false, error: 'Your session has expired. Please log in again.' }
+  const { user, firm } = ctx
 
   const parsed = clientSchema.safeParse(input)
   if (!parsed.success) {
@@ -57,20 +58,16 @@ export async function saveClient(
   // everyone they have and can still edit them — locking someone out of data
   // they already entered would be worse than a nag.
   if (!clientId) {
-    const [{ data: profile }, { count }] = await Promise.all([
-      supabase.from('profiles').select('plan').eq('id', user.id).maybeSingle(),
-      supabase
-        .from('clients')
-        .select('id', { count: 'exact', head: true })
-        .is('archived_at', null),
-    ])
-    const plan = profile?.plan ?? 'starter'
-    if ((count ?? 0) >= planLimits(plan).maxClients) {
-      return { ok: false, error: clientLimitMessage(plan) }
+    const { count } = await supabase
+      .from('clients')
+      .select('id', { count: 'exact', head: true })
+      .is('archived_at', null)
+    if ((count ?? 0) >= planLimits(firm.plan).maxClients) {
+      return { ok: false, error: clientLimitMessage(firm.plan) }
     }
   }
 
-  const row = { user_id: user.id, ...normalizeClient(parsed.data) }
+  const row = { firm_id: firm.firmId, created_by: user.id, ...normalizeClient(parsed.data) }
 
   let savedId: string
 
@@ -100,7 +97,8 @@ export async function saveClient(
   if (services.length > 0) {
     const { error: insertError } = await supabase.from('client_services').insert(
       services.map((service_type) => ({
-        user_id: user.id,
+        firm_id: firm.firmId,
+        created_by: user.id,
         client_id: savedId,
         service_type,
       }))
@@ -114,7 +112,7 @@ export async function saveClient(
   // than making the CA remember a separate "generate deadlines" step.
   // A failure here must not lose the client they just typed in.
   try {
-    await syncClientDeadlines(savedId, user.id)
+    await syncClientDeadlines(savedId, firm.firmId, user.id)
   } catch (error) {
     console.error('Deadline sync failed for client', savedId, error)
   }
@@ -132,8 +130,9 @@ export async function saveClient(
  * leave the product — destroying it on a misclick would be unforgivable.
  */
 export async function archiveClient(clientId: string): Promise<ActionResult> {
-  const user = await getApiUser()
-  if (!user) return { ok: false, error: 'Your session has expired. Please log in again.' }
+  const ctx = await getApiFirm()
+  if (!ctx) return { ok: false, error: 'Your session has expired. Please log in again.' }
+  const { user, firm } = ctx
 
   const supabase = await createClient()
   const { error } = await supabase
@@ -145,7 +144,7 @@ export async function archiveClient(clientId: string): Promise<ActionResult> {
 
   // An archived client should stop accruing future deadlines.
   try {
-    await syncClientDeadlines(clientId, user.id)
+    await syncClientDeadlines(clientId, firm.firmId, user.id)
   } catch (syncError) {
     console.error('Deadline sync failed for client', clientId, syncError)
   }
@@ -157,8 +156,9 @@ export async function archiveClient(clientId: string): Promise<ActionResult> {
 }
 
 export async function restoreClient(clientId: string): Promise<ActionResult> {
-  const user = await getApiUser()
-  if (!user) return { ok: false, error: 'Your session has expired. Please log in again.' }
+  const ctx = await getApiFirm()
+  if (!ctx) return { ok: false, error: 'Your session has expired. Please log in again.' }
+  const { user, firm } = ctx
 
   const supabase = await createClient()
   const { error } = await supabase
@@ -169,7 +169,7 @@ export async function restoreClient(clientId: string): Promise<ActionResult> {
   if (error) return { ok: false, error: friendlyDbError(error.code, error.message) }
 
   try {
-    await syncClientDeadlines(clientId, user.id)
+    await syncClientDeadlines(clientId, firm.firmId, user.id)
   } catch (syncError) {
     console.error('Deadline sync failed for client', clientId, syncError)
   }

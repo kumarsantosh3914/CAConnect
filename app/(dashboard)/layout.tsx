@@ -1,6 +1,5 @@
 import Link from 'next/link'
-import { requireUser } from '@/lib/auth'
-import { createClient } from '@/lib/supabase/server'
+import { requireUser, getFirmContext } from '@/lib/auth'
 import { SidebarNav } from '@/components/layout/sidebar-nav'
 import { UserMenu } from '@/components/layout/user-menu'
 import { Logo } from '@/components/brand/logo'
@@ -10,12 +9,9 @@ export default async function DashboardLayout({ children }: LayoutProps<'/'>) {
   // check. This is the real gate.
   const user = await requireUser()
 
-  const supabase = await createClient()
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('firm_name')
-    .eq('id', user.id)
-    .maybeSingle()
+  // Not requireFirm(): onboarding lives inside this layout, and a user who has
+  // not created a firm yet must be able to reach it rather than be bounced.
+  const firm = await getFirmContext()
 
   return (
     <div className="flex min-h-svh">
@@ -32,7 +28,7 @@ export default async function DashboardLayout({ children }: LayoutProps<'/'>) {
             <Logo />
           </Link>
           <div className="ml-auto">
-            <UserMenu email={user.email ?? ''} firmName={profile?.firm_name ?? null} />
+            <UserMenu email={user.email ?? ''} firmName={firm?.name ?? null} />
           </div>
         </header>
 

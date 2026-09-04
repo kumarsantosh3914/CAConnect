@@ -4,7 +4,7 @@ import { isValidTokenFormat } from './tokens'
 
 export type PublicUploadRequest = {
   id: string
-  user_id: string
+  firm_id: string
   client_id: string
   title: string
   message: string | null
@@ -43,7 +43,7 @@ export async function lookupUploadRequest(token: string): Promise<UploadRequestL
     // Must be a single string literal — supabase-js infers result types by
     // parsing it, and a concatenated expression defeats that.
     .select(
-      'id,user_id,client_id,title,message,status,expires_at,clients(name),document_request_items(id,label,is_required,sort_order,fulfilled_document_id)'
+      'id,firm_id,client_id,title,message,status,expires_at,clients(name),document_request_items(id,label,is_required,sort_order,fulfilled_document_id)'
     )
     .eq('token', token)
     .maybeSingle()
@@ -52,10 +52,12 @@ export async function lookupUploadRequest(token: string): Promise<UploadRequestL
   if (new Date(data.expires_at) < new Date()) return { ok: false, reason: 'expired' }
   if (data.status === 'expired') return { ok: false, reason: 'expired' }
 
-  const { data: profile } = await admin
-    .from('profiles')
-    .select('firm_name')
-    .eq('id', data.user_id)
+  // The firm's name, for the client-facing page header. Firm-level now, so it
+  // comes from firms rather than the owner's profile.
+  const { data: firm } = await admin
+    .from('firms')
+    .select('name')
+    .eq('id', data.firm_id)
     .maybeSingle()
 
   const items = (data.document_request_items ?? [])
@@ -72,13 +74,13 @@ export async function lookupUploadRequest(token: string): Promise<UploadRequestL
     ok: true,
     request: {
       id: data.id,
-      user_id: data.user_id,
+      firm_id: data.firm_id,
       client_id: data.client_id,
       title: data.title,
       message: data.message,
       status: data.status,
       expires_at: data.expires_at,
-      firm_name: profile?.firm_name ?? null,
+      firm_name: firm?.name ?? null,
       client_name: data.clients?.name ?? '',
       items,
     },

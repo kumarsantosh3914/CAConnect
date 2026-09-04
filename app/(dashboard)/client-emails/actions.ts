@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
-import { getApiUser } from '@/lib/auth'
+import { getApiFirm } from '@/lib/auth'
 
 export type ClientEmailActionResult =
   | { ok: true; emailId: string }
@@ -23,8 +23,9 @@ export type CreateClientEmailInput = z.infer<typeof createSchema>
 export async function createClientEmail(
   input: CreateClientEmailInput
 ): Promise<ClientEmailActionResult> {
-  const user = await getApiUser()
-  if (!user) return { ok: false, error: 'Your session has expired. Please log in again.' }
+  const ctx = await getApiFirm()
+  if (!ctx) return { ok: false, error: 'Your session has expired. Please log in again.' }
+  const { user, firm } = ctx
 
   const parsed = createSchema.safeParse(input)
   if (!parsed.success) {
@@ -38,7 +39,8 @@ export async function createClientEmail(
   const { data, error } = await supabase
     .from('client_emails')
     .insert({
-      user_id: user.id,
+      firm_id: firm.firmId,
+    created_by: user.id,
       client_id: parsed.data.client_id,
       topic: parsed.data.topic,
       subject_id: parsed.data.subject_id || null,
@@ -58,8 +60,8 @@ export async function saveClientEmailEdit(
   emailId: string,
   edits: { subject: string; body: string }
 ): Promise<ClientEmailActionResult> {
-  const user = await getApiUser()
-  if (!user) return { ok: false, error: 'Your session has expired. Please log in again.' }
+  const ctx = await getApiFirm()
+  if (!ctx) return { ok: false, error: 'Your session has expired. Please log in again.' }
 
   const supabase = await createClient()
   const { error } = await supabase
@@ -75,8 +77,8 @@ export async function saveClientEmailEdit(
 }
 
 export async function markClientEmailSent(emailId: string): Promise<ClientEmailActionResult> {
-  const user = await getApiUser()
-  if (!user) return { ok: false, error: 'Your session has expired. Please log in again.' }
+  const ctx = await getApiFirm()
+  if (!ctx) return { ok: false, error: 'Your session has expired. Please log in again.' }
 
   const supabase = await createClient()
   const { error } = await supabase.from('client_emails').update({ status: 'sent' }).eq('id', emailId)
@@ -88,8 +90,8 @@ export async function markClientEmailSent(emailId: string): Promise<ClientEmailA
 }
 
 export async function deleteClientEmail(emailId: string): Promise<ClientEmailActionResult> {
-  const user = await getApiUser()
-  if (!user) return { ok: false, error: 'Your session has expired. Please log in again.' }
+  const ctx = await getApiFirm()
+  if (!ctx) return { ok: false, error: 'Your session has expired. Please log in again.' }
 
   const supabase = await createClient()
   const { error } = await supabase.from('client_emails').delete().eq('id', emailId)

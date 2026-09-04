@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { AlertTriangle, CalendarClock, FileText, Receipt, Sparkles, Users } from 'lucide-react'
-import { requireUser } from '@/lib/auth'
+import { requireFirm } from '@/lib/auth'
 import { createClient } from '@/lib/supabase/server'
 import { bucketDeadlines, listDeadlines } from '@/lib/deadlines/queries'
 import { feeTotals } from '@/lib/fees/queries'
@@ -55,21 +55,20 @@ function StatCard({
 }
 
 export default async function DashboardPage() {
-  const user = await requireUser()
+  const { firm } = await requireFirm()
   const supabase = await createClient()
 
-  const [{ count: clientCount }, deadlines, totals, documents, clients, { data: profile }] =
+  const [{ count: clientCount }, deadlines, totals, documents, clients] =
     await Promise.all([
       supabase.from('clients').select('id', { count: 'exact', head: true }).is('archived_at', null),
       listDeadlines(),
       feeTotals(),
       listDocuments(),
       listClients(),
-      supabase.from('profiles').select('firm_name,onboarded_at').eq('id', user.id).maybeSingle(),
     ])
 
-  // A CA who has never been through setup starts there, not on empty tiles.
-  if (!profile?.onboarded_at && (clientCount ?? 0) === 0) redirect('/onboarding')
+  // A firm with nothing in it starts at setup, not on empty tiles.
+  if (!firm.name && (clientCount ?? 0) === 0) redirect('/onboarding')
 
   const buckets = bucketDeadlines(deadlines)
   const overdue = buckets[0].deadlines.length
@@ -82,7 +81,7 @@ export default async function DashboardPage() {
   return (
     <>
       <PageHeader
-        title={profile?.firm_name ? `Good morning, ${profile.firm_name}` : 'Dashboard'}
+        title={firm.name ? `Good morning, ${firm.name}` : 'Dashboard'}
         description="What needs your attention today."
         action={
           hasClients ? (
@@ -92,7 +91,7 @@ export default async function DashboardPage() {
               <AddClientButton />
               <RequestDocumentsButton
                 clients={clients.map((c) => ({ id: c.id, name: c.name, phone: c.phone }))}
-                firmName={profile?.firm_name ?? null}
+                firmName={firm.name}
                 label="Request docs"
               />
               <AddFeeButton clients={clients.map((c) => ({ id: c.id, name: c.name }))} />

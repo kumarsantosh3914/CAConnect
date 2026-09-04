@@ -27,6 +27,7 @@ type Rel<Table extends string, Column extends string> = {
 }
 
 type ClientFk = [Rel<'clients', 'client_id'>]
+type FirmFk = [Rel<'firms', 'firm_id'>]
 type RequestFk = [Rel<'document_requests', 'request_id'>]
 
 export type ServiceType =
@@ -47,22 +48,52 @@ export type NoticeStatus = 'draft' | 'reviewed' | 'sent'
 export type ClientEmailTopic = 'deadline_reminder' | 'document_followup' | 'fee_reminder' | 'custom'
 export type NoticeSource = 'paste' | 'pdf'
 export type PlanTier = 'starter' | 'solo' | 'pro' | 'team'
+export type FirmRole = 'owner' | 'staff'
 
+/** Per-person. Firm-level attributes live on FirmRow, not here. */
 export type ProfileRow = {
   id: string
-  firm_name: string | null
   full_name: string | null
   phone: string | null
-  city: string | null
-  plan: PlanTier
   onboarded_at: string | null
   created_at: string
   updated_at: string
 }
 
+export type FirmRow = {
+  id: string
+  name: string | null
+  city: string | null
+  created_by: string | null
+  plan: PlanTier
+  created_at: string
+  updated_at: string
+}
+
+export type FirmMemberRow = {
+  id: string
+  firm_id: string
+  user_id: string
+  role: FirmRole
+  created_at: string
+}
+
+export type FirmInviteRow = {
+  id: string
+  firm_id: string
+  email: string
+  role: FirmRole
+  token: string
+  invited_by: string | null
+  expires_at: string
+  accepted_at: string | null
+  created_at: string
+}
+
 export type ClientRow = {
   id: string
-  user_id: string
+  firm_id: string
+  created_by: string | null
   name: string
   client_type: ClientType
   pan: string | null
@@ -79,7 +110,8 @@ export type ClientRow = {
 
 export type ClientServiceRow = {
   id: string
-  user_id: string
+  firm_id: string
+  created_by: string | null
   client_id: string
   service_type: ServiceType
   is_active: boolean
@@ -100,7 +132,8 @@ export type DeadlineTemplateRow = {
 
 export type DeadlineRow = {
   id: string
-  user_id: string
+  firm_id: string
+  created_by: string | null
   client_id: string
   template_id: string | null
   service_type: ServiceType
@@ -116,7 +149,8 @@ export type DeadlineRow = {
 
 export type DocumentRequestRow = {
   id: string
-  user_id: string
+  firm_id: string
+  created_by: string | null
   client_id: string
   token: string
   title: string
@@ -130,7 +164,8 @@ export type DocumentRequestRow = {
 
 export type DocumentRequestItemRow = {
   id: string
-  user_id: string
+  firm_id: string
+  created_by: string | null
   request_id: string
   label: string
   is_required: boolean
@@ -141,7 +176,8 @@ export type DocumentRequestItemRow = {
 
 export type DocumentRow = {
   id: string
-  user_id: string
+  firm_id: string
+  created_by: string | null
   client_id: string
   request_id: string | null
   item_id: string | null
@@ -155,7 +191,8 @@ export type DocumentRow = {
 
 export type FeeRow = {
   id: string
-  user_id: string
+  firm_id: string
+  created_by: string | null
   client_id: string
   service_type: ServiceType | null
   description: string
@@ -170,7 +207,8 @@ export type FeeRow = {
 
 export type NoticeRow = {
   id: string
-  user_id: string
+  firm_id: string
+  created_by: string | null
   client_id: string | null
   title: string
   notice_type: string | null
@@ -188,7 +226,8 @@ export type NoticeRow = {
 
 export type ClientEmailRow = {
   id: string
-  user_id: string
+  firm_id: string
+  created_by: string | null
   client_id: string
   topic: ClientEmailTopic
   subject_id: string | null
@@ -205,7 +244,8 @@ export type ClientEmailRow = {
 
 export type EmailLogRow = {
   id: string
-  user_id: string
+  firm_id: string
+  created_by: string | null
   kind: string
   subject_id: string
   variant: string
@@ -222,15 +262,33 @@ export type Database = {
         Update: Partial<ProfileRow>
         Relationships: []
       }
+      firms: {
+        Row: FirmRow
+        Insert: Insertable<FirmRow, never>
+        Update: Partial<FirmRow>
+        Relationships: []
+      }
+      firm_members: {
+        Row: FirmMemberRow
+        Insert: Insertable<FirmMemberRow, 'firm_id' | 'user_id'>
+        Update: Partial<FirmMemberRow>
+        Relationships: FirmFk
+      }
+      firm_invites: {
+        Row: FirmInviteRow
+        Insert: Insertable<FirmInviteRow, 'firm_id' | 'email' | 'token' | 'expires_at'>
+        Update: Partial<FirmInviteRow>
+        Relationships: FirmFk
+      }
       clients: {
         Row: ClientRow
-        Insert: Insertable<ClientRow, 'user_id' | 'name'>
+        Insert: Insertable<ClientRow, 'firm_id' | 'name'>
         Update: Partial<ClientRow>
         Relationships: []
       }
       client_services: {
         Row: ClientServiceRow
-        Insert: Insertable<ClientServiceRow, 'user_id' | 'client_id' | 'service_type'>
+        Insert: Insertable<ClientServiceRow, 'firm_id' | 'client_id' | 'service_type'>
         Update: Partial<ClientServiceRow>
         Relationships: ClientFk
       }
@@ -247,7 +305,7 @@ export type Database = {
         Row: DeadlineRow
         Insert: Insertable<
           DeadlineRow,
-          'user_id' | 'client_id' | 'service_type' | 'label' | 'period_label' | 'due_date'
+          'firm_id' | 'client_id' | 'service_type' | 'label' | 'period_label' | 'due_date'
         >
         Update: Partial<DeadlineRow>
         Relationships: ClientFk
@@ -256,14 +314,14 @@ export type Database = {
         Row: DocumentRequestRow
         Insert: Insertable<
           DocumentRequestRow,
-          'user_id' | 'client_id' | 'token' | 'title' | 'expires_at'
+          'firm_id' | 'client_id' | 'token' | 'title' | 'expires_at'
         >
         Update: Partial<DocumentRequestRow>
         Relationships: ClientFk
       }
       document_request_items: {
         Row: DocumentRequestItemRow
-        Insert: Insertable<DocumentRequestItemRow, 'user_id' | 'request_id' | 'label'>
+        Insert: Insertable<DocumentRequestItemRow, 'firm_id' | 'request_id' | 'label'>
         Update: Partial<DocumentRequestItemRow>
         Relationships: RequestFk
       }
@@ -271,38 +329,45 @@ export type Database = {
         Row: DocumentRow
         Insert: Insertable<
           DocumentRow,
-          'user_id' | 'client_id' | 'storage_path' | 'file_name' | 'mime_type' | 'size_bytes'
+          'firm_id' | 'client_id' | 'storage_path' | 'file_name' | 'mime_type' | 'size_bytes'
         >
         Update: Partial<DocumentRow>
         Relationships: [...ClientFk, ...RequestFk]
       }
       fees: {
         Row: FeeRow
-        Insert: Insertable<FeeRow, 'user_id' | 'client_id' | 'description' | 'amount_paise'>
+        Insert: Insertable<FeeRow, 'firm_id' | 'client_id' | 'description' | 'amount_paise'>
         Update: Partial<FeeRow>
         Relationships: ClientFk
       }
       notices: {
         Row: NoticeRow
-        Insert: Insertable<NoticeRow, 'user_id' | 'title' | 'notice_text'>
+        Insert: Insertable<NoticeRow, 'firm_id' | 'title' | 'notice_text'>
         Update: Partial<NoticeRow>
         Relationships: ClientFk
       }
       client_emails: {
         Row: ClientEmailRow
-        Insert: Insertable<ClientEmailRow, 'user_id' | 'client_id' | 'topic'>
+        Insert: Insertable<ClientEmailRow, 'firm_id' | 'client_id' | 'topic'>
         Update: Partial<ClientEmailRow>
         Relationships: ClientFk
       }
       email_log: {
         Row: EmailLogRow
-        Insert: Insertable<EmailLogRow, 'user_id' | 'kind' | 'subject_id' | 'recipient'>
+        Insert: Insertable<EmailLogRow, 'firm_id' | 'kind' | 'subject_id' | 'recipient'>
         Update: Partial<EmailLogRow>
         Relationships: []
       }
     }
     Views: Record<never, never>
-    Functions: Record<never, never>
+    Functions: {
+      auth_firm_ids: { Args: Record<string, never>; Returns: string[] }
+      firm_invite_preview: {
+        Args: { invite_token: string }
+        Returns: { firm_name: string | null; role: FirmRole; email: string }[]
+      }
+      accept_firm_invite: { Args: { invite_token: string }; Returns: string }
+    }
     Enums: {
       service_type: ServiceType
       client_type: ClientType
@@ -314,6 +379,7 @@ export type Database = {
       notice_source: NoticeSource
       client_email_topic: ClientEmailTopic
       plan_tier: PlanTier
+      firm_role: FirmRole
     }
     CompositeTypes: Record<never, never>
   }

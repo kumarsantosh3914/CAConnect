@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
-import { getApiUser } from '@/lib/auth'
+import { getApiFirm } from '@/lib/auth'
 import { feeSchema, type FeeInput } from '@/lib/validations/fee'
 import { rupeesToPaise } from '@/lib/format'
 import type { FeeStatus } from '@/types/database'
@@ -10,8 +10,9 @@ import type { FeeStatus } from '@/types/database'
 export type FeeActionResult = { ok: true; feeId: string } | { ok: false; error: string }
 
 export async function saveFee(input: FeeInput, feeId?: string): Promise<FeeActionResult> {
-  const user = await getApiUser()
-  if (!user) return { ok: false, error: 'Your session has expired. Please log in again.' }
+  const ctx = await getApiFirm()
+  if (!ctx) return { ok: false, error: 'Your session has expired. Please log in again.' }
+  const { user, firm } = ctx
 
   const parsed = feeSchema.safeParse(input)
   if (!parsed.success) {
@@ -22,7 +23,8 @@ export async function saveFee(input: FeeInput, feeId?: string): Promise<FeeActio
   const now = new Date().toISOString()
 
   const row = {
-    user_id: user.id,
+    firm_id: firm.firmId,
+    created_by: user.id,
     client_id: parsed.data.client_id,
     service_type: parsed.data.service_type ? parsed.data.service_type : null,
     description: parsed.data.description,
@@ -50,8 +52,8 @@ export async function updateFeeStatus(
   feeId: string,
   status: FeeStatus
 ): Promise<FeeActionResult> {
-  const user = await getApiUser()
-  if (!user) return { ok: false, error: 'Your session has expired. Please log in again.' }
+  const ctx = await getApiFirm()
+  if (!ctx) return { ok: false, error: 'Your session has expired. Please log in again.' }
 
   const supabase = await createClient()
   const now = new Date().toISOString()
@@ -77,8 +79,8 @@ export async function updateFeeStatus(
 }
 
 export async function deleteFee(feeId: string): Promise<FeeActionResult> {
-  const user = await getApiUser()
-  if (!user) return { ok: false, error: 'Your session has expired. Please log in again.' }
+  const ctx = await getApiFirm()
+  if (!ctx) return { ok: false, error: 'Your session has expired. Please log in again.' }
 
   const supabase = await createClient()
   const { error } = await supabase.from('fees').delete().eq('id', feeId)

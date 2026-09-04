@@ -2,6 +2,7 @@ import 'server-only'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/database'
 import { aiLimitMessage, planLimits } from '@/lib/plans'
+import type { PlanTier } from '@/types/database'
 import { countAiDraftsThisMonth } from './usage'
 
 /**
@@ -32,7 +33,8 @@ export type AiGuardResult =
 
 export async function checkAiGuards(
   supabase: SupabaseClient<Database>,
-  userId: string
+  userId: string,
+  firm: { firmId: string; name: string | null; plan: PlanTier }
 ): Promise<AiGuardResult> {
   if (isRateLimited(userId)) {
     return {
@@ -42,13 +44,7 @@ export async function checkAiGuards(
     }
   }
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('firm_name,plan')
-    .eq('id', userId)
-    .maybeSingle()
-
-  const plan = profile?.plan ?? 'starter'
+  const plan = firm.plan
   const limit = planLimits(plan).aiDraftsPerMonth
   if (Number.isFinite(limit)) {
     const count = await countAiDraftsThisMonth(supabase)
@@ -57,5 +53,5 @@ export async function checkAiGuards(
     }
   }
 
-  return { ok: true, firmName: profile?.firm_name ?? null }
+  return { ok: true, firmName: firm.name }
 }
