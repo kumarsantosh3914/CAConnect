@@ -53,6 +53,7 @@ export type FirmRole = 'owner' | 'staff'
 /** Per-person. Firm-level attributes live on FirmRow, not here. */
 export type ProfileRow = {
   id: string
+  email: string | null
   full_name: string | null
   phone: string | null
   onboarded_at: string | null
@@ -362,6 +363,7 @@ export type Database = {
     Views: Record<never, never>
     Functions: {
       auth_firm_ids: { Args: Record<string, never>; Returns: string[] }
+      firm_colleague_ids: { Args: Record<string, never>; Returns: string[] }
       firm_invite_preview: {
         Args: { invite_token: string }
         Returns: { firm_name: string | null; role: FirmRole; email: string }[]

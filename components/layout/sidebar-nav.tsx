@@ -10,6 +10,7 @@ import {
   Receipt,
   Scale,
   Users,
+  UsersRound,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -21,6 +22,7 @@ const NAV_ITEMS = [
   { href: '/fees', label: 'Fees', icon: Receipt },
   { href: '/notices', label: 'IT Notices', icon: Scale },
   { href: '/client-emails', label: 'Client Emails', icon: Mail },
+  { href: '/team', label: 'Team', icon: UsersRound },
 ]
 
 export function SidebarNav() {

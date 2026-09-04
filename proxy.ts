@@ -68,6 +68,7 @@ const PROTECTED_PREFIXES = [
   '/notices',
   '/settings',
   '/onboarding',
+  '/team',
 ]
 
 export const config = {

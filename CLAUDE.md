@@ -5,7 +5,7 @@
 ## Status
 
 V1 is built, deployed, and live at https://www.bevritti.in (Vercel + Supabase,
-ap-south-1). All 5 core features, dashboard, email reminder cron, onboarding,
+ap-southeast-1). All 5 core features, dashboard, email reminder cron, onboarding,
 marketing pages, Google sign-in, and plan limits are in place. RLS verified
 under attack, 29 unit tests on the deadline engine, a 20-assertion security
 suite for the anonymous upload route (`npm run security-check`).
@@ -110,10 +110,23 @@ Do not build them until the DoD criteria above are met. Revisit then.
    cannot be doubled by splitting it across features. RLS and the shared
    quota both verified live before this shipped.
 
-2. **Firm/staff data model** — the one-way door, built next while there's no
-   time pressure from features already sitting on top of it. Confirmed shape:
-   a *real multi-user firm*, not lightweight tagging — a second person gets
-   their own login and sees only what they're assigned.
+2. **Firm/staff data model** — DONE (2026-09-04), migrations 0005 and 0006,
+   applied to production and verified live. A firm is its own entity; domain
+   rows carry `firm_id` for tenancy and `created_by` for provenance. Team
+   management lives at `/team`, invites are accepted at `/invite/[token]`.
+   Read `supabase/migrations/0005_firms_and_staff.sql` before touching RLS —
+   its header explains why legacy firm ids equal the founder's auth uid, which
+   is what let the migration run with zero data movement and zero storage
+   objects moved.
+
+   Two rules that are enforced in the database, not just the UI: only an owner
+   can invite, remove people, or change the plan; and joining an existing firm
+   only ever happens through `accept_firm_invite()`, never through an insert
+   policy. An early draft allowed any authenticated user to insert themselves
+   into any firm they knew the id of — see the migration header.
+
+   Migrations are now applied with `npx supabase db push` (the CLI is linked).
+   Run `./scripts/migration-dryrun/run.sh` first for anything touching RLS.
 
    - New tables: `firms (id, owner_id)`, `firm_members (firm_id, user_id, role)`
      with `role` an enum (`owner`, `staff`).

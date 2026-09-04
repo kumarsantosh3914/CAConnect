@@ -41,3 +41,12 @@ select accept_firm_invite('tok_good');
 \echo '=== junior is staff, not owner: cannot invite others (expect RLS violation) ==='
 insert into firm_invites (firm_id, email, role, token, expires_at)
 values ('22222222-2222-2222-2222-222222222222','someone@test','staff','tok_evil', now() + interval '7 days');
+
+\echo '=== after joining, junior can read colleagues profiles but not outsiders ==='
+select count(*) as colleague_profiles from profiles;
+
+\echo '=== junior must NOT see CA One''s profile (different firm) ==='
+select count(*) as leaked_profile from profiles where id = '11111111-1111-1111-1111-111111111111';
+
+\echo '=== profile emails are populated (expect junior@test) ==='
+select email from profiles where id = '55555555-5555-5555-5555-555555555555';
