@@ -44,9 +44,18 @@ const { data: made, error: makeErr } = await admin.auth.admin.createUser({
 })
 if (makeErr) { console.error('Could not create scratch CA:', makeErr.message); process.exit(1) }
 const ca = made.user
+
+// A firm for the scratch CA to own. Domain rows are firm-scoped now, so the
+// fixture needs a firm and a membership, not just a user.
+const { data: firm } = await admin
+  .from('firms')
+  .insert({ name: 'Security Check Firm', created_by: ca.id })
+  .select('id').single()
+await admin.from('firm_members').insert({ firm_id: firm.id, user_id: ca.id, role: 'owner' })
+
 const { data: client } = await admin
   .from('clients')
-  .insert({ user_id: ca.id, name: 'Security Check Client' })
+  .insert({ firm_id: firm.id, created_by: ca.id, name: 'Security Check Client' })
   .select('id').single()
 
 // Two requests: one live, one already expired, plus an item on each
@@ -54,10 +63,10 @@ const liveToken = tok(), expiredToken = tok(), otherToken = tok()
 const mk = async (token, days) => {
   const exp = new Date(); exp.setDate(exp.getDate() + days)
   const { data: r } = await admin.from('document_requests').insert({
-    user_id: ca.id, client_id: client.id, token, title: 'Sec test', expires_at: exp.toISOString()
+    firm_id: firm.id, created_by: ca.id, client_id: client.id, token, title: 'Sec test', expires_at: exp.toISOString()
   }).select('id').single()
   const { data: i } = await admin.from('document_request_items').insert({
-    user_id: ca.id, request_id: r.id, label: 'Form 16', is_required: true
+    firm_id: firm.id, created_by: ca.id, request_id: r.id, label: 'Form 16', is_required: true
   }).select('id').single()
   return { requestId: r.id, itemId: i.id }
 }
@@ -93,8 +102,9 @@ check('valid upload accepted', ok.status === 200, `got ${ok.status}`)
 check('request auto-completed when required items filled', ok.body.complete === true)
 
 const { data: doc } = await admin.from('documents').select('*').eq('request_id', live.requestId).single()
-check('document row owned by the CA, not the caller', doc?.user_id === ca.id)
-check('storage path namespaced under the CA user_id', doc?.storage_path?.startsWith(`${ca.id}/${client.id}/`), doc?.storage_path?.slice(0,40))
+check('document row owned by the FIRM, not the caller', doc?.firm_id === firm.id)
+check('document row has no created_by (an anonymous client uploaded it)', doc?.created_by === null)
+check('storage path namespaced under the firm id', doc?.storage_path?.startsWith(`${firm.id}/${client.id}/`), doc?.storage_path?.slice(0,40))
 check('filename sanitised', doc?.file_name === 'Form16.pdf', doc?.file_name)
 
 console.log('\n── FILENAME SANITISATION ──')
@@ -120,9 +130,10 @@ const burst = await Promise.all(Array.from({length:26}, () => post(liveToken, { 
 check('burst of 26 uploads gets throttled', burst.some(r => r.status === 429), `statuses: ${[...new Set(burst.map(r=>r.status))].join(',')}`)
 
 // Cleanup: remove every artefact this run created, and nothing else.
-const { data: ourDocs } = await admin.from('documents').select('storage_path').eq('user_id', ca.id)
+const { data: ourDocs } = await admin.from('documents').select('storage_path').eq('firm_id', firm.id)
 if (ourDocs?.length) await admin.storage.from('client-documents').remove(ourDocs.map(d => d.storage_path))
-await admin.auth.admin.deleteUser(ca.id) // cascades to clients, requests, documents
+await admin.from('firms').delete().eq('id', firm.id) // cascades to clients, requests, documents
+await admin.auth.admin.deleteUser(ca.id)
 
 const failed = results.filter(r => !r.pass)
 console.log(`\n${'='.repeat(60)}`)
