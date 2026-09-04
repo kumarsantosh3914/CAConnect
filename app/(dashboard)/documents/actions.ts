@@ -5,7 +5,7 @@ import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { getApiUser } from '@/lib/auth'
 import { generateUploadToken } from '@/lib/documents/tokens'
-import { env } from '@/lib/env'
+import { requestOrigin } from '@/lib/url'
 
 export type DocumentActionResult =
   | { ok: true; requestId: string; url: string }
@@ -81,7 +81,9 @@ export async function createDocumentRequest(
   return {
     ok: true,
     requestId: created.id,
-    url: `${env.appUrl()}/upload/${created.token}`,
+    // Built from the host the CA is on, so the link always matches the domain
+    // they are looking at.
+    url: `${await requestOrigin()}/upload/${created.token}`,
   }
 }
 

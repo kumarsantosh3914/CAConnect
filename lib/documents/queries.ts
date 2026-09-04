@@ -5,6 +5,9 @@ export type DocumentRequestSummary = {
   id: string
   client_id: string
   client_name: string
+  client_phone: string | null
+  /** Needed to re-share an existing link; RLS scopes this to the owning CA. */
+  token: string
   title: string
   status: string
   expires_at: string
@@ -20,7 +23,7 @@ export async function listDocumentRequests(clientId?: string) {
   let query = supabase
     .from('document_requests')
     .select(
-      'id,client_id,title,status,expires_at,created_at,clients(name),document_request_items(id,is_required,fulfilled_document_id),documents(id)'
+      'id,client_id,token,title,status,expires_at,created_at,clients(name,phone),document_request_items(id,is_required,fulfilled_document_id),documents(id)'
     )
     .order('created_at', { ascending: false })
 
@@ -36,6 +39,8 @@ export async function listDocumentRequests(clientId?: string) {
       id: row.id,
       client_id: row.client_id,
       client_name: row.clients?.name ?? 'Unknown client',
+      client_phone: row.clients?.phone ?? null,
+      token: row.token,
       title: row.title,
       // Derive expiry rather than trusting the stored status — a request can
       // lapse without anything running to update the column.

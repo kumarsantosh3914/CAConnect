@@ -46,7 +46,7 @@ export default async function DocumentsPage() {
           <TabsTrigger value="files">Files ({documents.length})</TabsTrigger>
         </TabsList>
         <TabsContent value="requests">
-          <DocumentRequestList requests={requests} />
+          <DocumentRequestList requests={requests} firmName={profile?.firm_name ?? null} />
         </TabsContent>
         <TabsContent value="files">
           <DocumentList documents={documents} />

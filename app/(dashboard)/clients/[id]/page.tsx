@@ -163,7 +163,11 @@ export default async function ClientProfilePage(props: PageProps<'/clients/[id]'
                 label="Request documents"
               />
             </div>
-            <DocumentRequestList requests={requests} showClient={false} />
+            <DocumentRequestList
+              requests={requests}
+              showClient={false}
+              firmName={profile?.firm_name ?? null}
+            />
             <DocumentList documents={documents} showClient={false} />
           </TabsContent>
           <TabsContent value="fees" className="space-y-4">

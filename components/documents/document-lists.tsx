@@ -3,9 +3,10 @@
 import { useState, useTransition } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Download, FileText, Inbox, Link2, XCircle } from 'lucide-react'
+import { Download, FileText, Inbox, Link2, Share2, XCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { expireDocumentRequest, getDocumentUrl } from '@/app/(dashboard)/documents/actions'
+import { ShareLinkDialog } from './share-link-dialog'
 import type { DocumentRequestSummary, DocumentSummary } from '@/lib/documents/queries'
 import { formatDate, formatDateTime, formatFileSize } from '@/lib/format'
 import { Button } from '@/components/ui/button'
@@ -23,12 +24,17 @@ import {
 export function DocumentRequestList({
   requests,
   showClient = true,
+  firmName = null,
 }: {
   requests: DocumentRequestSummary[]
   showClient?: boolean
+  firmName?: string | null
 }) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
+  // Re-share an existing link. Without this the URL is only ever visible in
+  // the dialog shown at creation — close it and the CA cannot resend.
+  const [sharing, setSharing] = useState<DocumentRequestSummary | null>(null)
 
   function onExpire(request: DocumentRequestSummary) {
     startTransition(async () => {
@@ -89,22 +95,48 @@ export function DocumentRequestList({
                 <StatusBadge status={request.status} />
               </TableCell>
               <TableCell>
-                {request.status === 'open' && (
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    disabled={isPending}
-                    onClick={() => onExpire(request)}
-                    aria-label={`Close link for ${request.title}`}
-                  >
-                    <XCircle className="size-4" />
-                  </Button>
-                )}
+                <div className="flex justify-end gap-1">
+                  {request.status === 'open' && (
+                    <>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => setSharing(request)}
+                        aria-label={`Share link for ${request.title}`}
+                      >
+                        <Share2 className="size-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        disabled={isPending}
+                        onClick={() => onExpire(request)}
+                        aria-label={`Close link for ${request.title}`}
+                      >
+                        <XCircle className="size-4" />
+                      </Button>
+                    </>
+                  )}
+                </div>
               </TableCell>
             </TableRow>
           ))}
         </TableBody>
       </Table>
+
+      {sharing && (
+        <ShareLinkDialog
+          open
+          onOpenChange={(next) => !next && setSharing(null)}
+          // Built in the browser from the domain the CA is actually on, so a
+          // re-shared link can never carry a stale origin.
+          url={`${window.location.origin}/upload/${sharing.token}`}
+          title={sharing.title}
+          clientName={sharing.client_name}
+          clientPhone={sharing.client_phone}
+          firmName={firmName}
+        />
+      )}
     </div>
   )
 }
