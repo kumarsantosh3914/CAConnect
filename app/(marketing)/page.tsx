@@ -10,6 +10,13 @@ import {
 import { Button } from '@/components/ui/button'
 import { PLANS } from '@/lib/plans'
 
+/** Placeholders until real beta CAs replace them. See the section comment. */
+const TESTIMONIAL_SLOTS = [
+  { id: 1, placeholder: 'Your words here.', persona: 'Solo CA · ITR and GST practice' },
+  { id: 2, placeholder: 'Your words here.', persona: 'Three-person firm · 120+ clients' },
+  { id: 3, placeholder: 'Your words here.', persona: 'Growing practice · Tier 2 city' },
+]
+
 const FEATURES = [
   {
     icon: Users,
@@ -134,6 +141,48 @@ submits as under.
               professional responsibility, as you always have.
             </p>
           </div>
+        </div>
+
+        <div className="mt-10 text-center">
+          <Button size="lg" nativeButton={false} render={<Link href="/signup" />}>
+            Start Free — No Credit Card
+          </Button>
+        </div>
+      </section>
+
+      {/*
+        Testimonial slots, per the platform decisions doc. Deliberately empty
+        until real beta CAs say something — inventing quotes for a product
+        with no users would be fabricating social proof.
+      */}
+      <section className="border-t">
+        <div className="mx-auto w-full max-w-5xl px-4 py-16">
+          <h2 className="text-center text-2xl font-semibold tracking-tight">
+            From the CAs using it
+          </h2>
+          <p className="mt-2 text-center text-sm text-muted-foreground">
+            We are onboarding our first firms now. These are their seats.
+          </p>
+          <div className="mt-10 grid gap-4 sm:grid-cols-3">
+            {TESTIMONIAL_SLOTS.map((slot) => (
+              <figure
+                key={slot.id}
+                className="rounded-lg border border-dashed p-5 text-sm text-muted-foreground"
+              >
+                <blockquote className="italic">“{slot.placeholder}”</blockquote>
+                <figcaption className="mt-4 text-xs">
+                  <span className="block font-medium text-foreground/70">Reserved</span>
+                  {slot.persona}
+                </figcaption>
+              </figure>
+            ))}
+          </div>
+          <p className="mt-8 text-center text-sm">
+            <Link href="/signup" className="font-medium underline underline-offset-4">
+              Be one of the first 20 firms
+            </Link>{' '}
+            <span className="text-muted-foreground">— free while we build with you.</span>
+          </p>
         </div>
       </section>
 

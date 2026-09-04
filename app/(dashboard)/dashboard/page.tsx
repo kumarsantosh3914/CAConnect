@@ -1,12 +1,16 @@
 import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { AlertTriangle, CalendarClock, Receipt, Users } from 'lucide-react'
+import { AlertTriangle, CalendarClock, FileText, Receipt, Sparkles, Users } from 'lucide-react'
 import { requireUser } from '@/lib/auth'
 import { createClient } from '@/lib/supabase/server'
 import { bucketDeadlines, listDeadlines } from '@/lib/deadlines/queries'
 import { feeTotals } from '@/lib/fees/queries'
-import { formatPaise } from '@/lib/format'
+import { listDocuments } from '@/lib/documents/queries'
+import { listClients } from '@/lib/clients/queries'
+import { RequestDocumentsButton } from '@/components/documents/request-documents-button'
+import { AddFeeButton } from '@/components/fees/fees-view'
+import { formatDateTime, formatPaise } from '@/lib/format'
 import { DeadlineBuckets } from '@/components/deadlines/deadline-buckets'
 import { AddClientButton } from '@/components/clients/add-client-button'
 import { PageHeader } from '@/components/ui/page-header'
@@ -54,12 +58,15 @@ export default async function DashboardPage() {
   const user = await requireUser()
   const supabase = await createClient()
 
-  const [{ count: clientCount }, deadlines, totals, { data: profile }] = await Promise.all([
-    supabase.from('clients').select('id', { count: 'exact', head: true }).is('archived_at', null),
-    listDeadlines(),
-    feeTotals(),
-    supabase.from('profiles').select('firm_name,onboarded_at').eq('id', user.id).maybeSingle(),
-  ])
+  const [{ count: clientCount }, deadlines, totals, documents, clients, { data: profile }] =
+    await Promise.all([
+      supabase.from('clients').select('id', { count: 'exact', head: true }).is('archived_at', null),
+      listDeadlines(),
+      feeTotals(),
+      listDocuments(),
+      listClients(),
+      supabase.from('profiles').select('firm_name,onboarded_at').eq('id', user.id).maybeSingle(),
+    ])
 
   // A CA who has never been through setup starts there, not on empty tiles.
   if (!profile?.onboarded_at && (clientCount ?? 0) === 0) redirect('/onboarding')
@@ -77,7 +84,25 @@ export default async function DashboardPage() {
       <PageHeader
         title={profile?.firm_name ? `Good morning, ${profile.firm_name}` : 'Dashboard'}
         description="What needs your attention today."
-        action={hasClients ? <AddClientButton /> : undefined}
+        action={
+          hasClients ? (
+            // Quick-add shortcuts, per the vision doc's dashboard spec: the
+            // four things a CA starts from a cold open.
+            <div className="flex flex-wrap gap-2">
+              <AddClientButton />
+              <RequestDocumentsButton
+                clients={clients.map((c) => ({ id: c.id, name: c.name, phone: c.phone }))}
+                firmName={profile?.firm_name ?? null}
+                label="Request docs"
+              />
+              <AddFeeButton clients={clients.map((c) => ({ id: c.id, name: c.name }))} />
+              <Button variant="outline" nativeButton={false} render={<Link href="/notices/new" />}>
+                <Sparkles className="size-4" aria-hidden />
+                Draft a notice reply
+              </Button>
+            </div>
+          ) : undefined
+        }
       />
 
       {!hasClients ? (
@@ -128,6 +153,42 @@ export default async function DashboardPage() {
               emptyTitle="Nothing due this week"
               emptyDescription="No overdue filings and nothing due in the next 7 days."
             />
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold tracking-tight">Recent documents</h2>
+              <Button variant="ghost" size="sm" nativeButton={false} render={<Link href="/documents" />}>
+                View all documents
+              </Button>
+            </div>
+            {documents.length === 0 ? (
+              <EmptyState
+                icon={FileText}
+                title="No documents yet"
+                description="Send a client an upload link and their files land here."
+              />
+            ) : (
+              <ul className="divide-y rounded-lg border">
+                {documents.slice(0, 5).map((document) => (
+                  <li key={document.id} className="flex items-center gap-3 px-4 py-3">
+                    <FileText className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">{document.file_name}</p>
+                      <Link
+                        href={`/clients/${document.client_id}`}
+                        className="text-xs text-muted-foreground hover:underline"
+                      >
+                        {document.client_name}
+                      </Link>
+                    </div>
+                    <span className="shrink-0 text-xs text-muted-foreground">
+                      {formatDateTime(document.created_at)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </>
       )}
