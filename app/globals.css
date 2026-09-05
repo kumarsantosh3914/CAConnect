@@ -8,16 +8,15 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   /*
-   * These must point at the variables next/font actually defines in
-   * app/layout.tsx (--font-geist-sans / --font-geist-mono). --font-sans used
-   * to reference itself, which resolves to nothing: `html { @apply font-sans }`
-   * then fell through to the browser default and the whole app rendered in
-   * Times, while three Geist woff2 files downloaded on every page load and
-   * were thrown away.
+   * These must point at the variables next/font defines in app/layout.tsx.
+   * A self-referencing or stale value here resolves to nothing and the whole
+   * app silently falls back to the browser serif — that is how it rendered in
+   * Times for weeks. If text ever looks like a Word document, check these
+   * three lines against the variable names in layout.tsx first.
    */
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-geist-sans);
+  --font-sans: var(--font-body);
+  --font-mono: var(--font-mono-figures);
+  --font-heading: var(--font-display);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -32,6 +31,14 @@
   --color-chart-2: var(--chart-2);
   --color-chart-1: var(--chart-1);
   --color-ring: var(--ring);
+  /* The stamp. Deliberately NOT --primary: spent once per screen, not on
+     every button. See the palette note in :root. */
+  --color-brand: var(--brand);
+  --color-brand-foreground: var(--brand-foreground);
+  --color-brand-muted: var(--brand-muted);
+  --color-verified: var(--verified);
+  --color-verified-muted: var(--verified-muted);
+  --color-rule: var(--rule);
   --color-input: var(--input);
   --color-border: var(--border);
   --color-destructive: var(--destructive);
@@ -57,72 +64,133 @@
 }
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
+  /*
+   * ── Statutory ledger ──────────────────────────────────────────────────
+   * Built from the documents a CA actually handles, not from a colour trend.
+   *
+   * The ground is cool paper, the pale grey-green of a government form, NOT
+   * the warm cream that pairs with a display serif in every AI-generated
+   * landing page this year. The identity is carried by structure — hairline
+   * rules instead of card borders, tabular figures, ruled columns — so the
+   * palette can stay quiet.
+   *
+   * `--primary` is ink navy, so buttons read authoritative rather than
+   * branded. `--brand` is the stamp ochre and is spent ONCE per screen: the
+   * live CTA, an active nav item, one accent rule. The moment it appears
+   * twice it stops meaning anything.
+   */
+  --background: oklch(0.976 0.004 120);
+  --foreground: oklch(0.243 0.036 264);
+
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
+  --card-foreground: var(--foreground);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --popover-foreground: var(--foreground);
+
+  /* Ink navy — #16233C territory. */
+  --primary: oklch(0.278 0.048 264);
+  --primary-foreground: oklch(0.985 0.003 120);
+
+  --secondary: oklch(0.955 0.006 120);
+  --secondary-foreground: oklch(0.278 0.048 264);
+
+  --muted: oklch(0.955 0.006 120);
+  --muted-foreground: oklch(0.505 0.018 258);
+
+  /* shadcn's --accent is the hover wash, not the brand. Keep it near-neutral. */
+  --accent: oklch(0.945 0.010 105);
+  --accent-foreground: oklch(0.278 0.048 264);
+
+  /* Stamp ochre. */
+  --brand: oklch(0.523 0.104 62);
+  --brand-foreground: oklch(0.985 0.003 120);
+  --brand-muted: oklch(0.945 0.030 78);
+
+  /* Filed, paid, verified — a filing green, distinct from the brand. */
+  --verified: oklch(0.435 0.070 176);
+  --verified-muted: oklch(0.945 0.026 176);
+
+  --destructive: oklch(0.505 0.160 27);
+
+  /* Hairlines carry this design, so the rule colour is a first-class token. */
+  --rule: oklch(0.885 0.010 100);
+  --border: var(--rule);
+  --input: oklch(0.865 0.012 100);
+  --ring: oklch(0.523 0.104 62);
+
+  --chart-1: oklch(0.523 0.104 62);
+  --chart-2: oklch(0.435 0.070 176);
+  --chart-3: oklch(0.278 0.048 264);
+  --chart-4: oklch(0.640 0.080 62);
+  --chart-5: oklch(0.620 0.040 258);
+
+  /* Tight, document-like. 10px rounding reads as a consumer app. */
+  --radius: 0.25rem;
+
+  --sidebar: oklch(0.962 0.006 118);
+  --sidebar-foreground: oklch(0.278 0.048 264);
+  --sidebar-primary: oklch(0.523 0.104 62);
+  --sidebar-primary-foreground: oklch(0.985 0.003 120);
+  --sidebar-accent: oklch(0.930 0.012 105);
+  --sidebar-accent-foreground: oklch(0.243 0.036 264);
+  --sidebar-border: var(--rule);
+  --sidebar-ring: oklch(0.523 0.104 62);
 }
 
+/*
+ * Dark is not an inversion. The ground goes to a blued slate — ink diluted,
+ * not paper darkened — and the ochre lifts in lightness so it still reads as a
+ * stamp against it rather than turning muddy.
+ */
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --background: oklch(0.196 0.018 258);
+  --foreground: oklch(0.928 0.008 110);
+
+  --card: oklch(0.242 0.021 258);
+  --card-foreground: var(--foreground);
+  --popover: oklch(0.242 0.021 258);
+  --popover-foreground: var(--foreground);
+
+  --primary: oklch(0.928 0.008 110);
+  --primary-foreground: oklch(0.212 0.020 258);
+
+  --secondary: oklch(0.292 0.020 258);
+  --secondary-foreground: oklch(0.928 0.008 110);
+
+  --muted: oklch(0.292 0.020 258);
+  --muted-foreground: oklch(0.680 0.016 250);
+
+  --accent: oklch(0.312 0.020 258);
+  --accent-foreground: oklch(0.928 0.008 110);
+
+  --brand: oklch(0.735 0.108 68);
+  --brand-foreground: oklch(0.196 0.018 258);
+  --brand-muted: oklch(0.302 0.042 62);
+
+  --verified: oklch(0.720 0.078 176);
+  --verified-muted: oklch(0.288 0.036 176);
+
+  --destructive: oklch(0.680 0.150 25);
+
+  --rule: oklch(0.330 0.018 256);
+  --border: var(--rule);
+  --input: oklch(0.372 0.018 256);
+  --ring: oklch(0.735 0.108 68);
+
+  --chart-1: oklch(0.735 0.108 68);
+  --chart-2: oklch(0.720 0.078 176);
+  --chart-3: oklch(0.800 0.030 250);
+  --chart-4: oklch(0.620 0.080 62);
+  --chart-5: oklch(0.560 0.030 250);
+
+  --sidebar: oklch(0.222 0.020 258);
+  --sidebar-foreground: oklch(0.928 0.008 110);
+  --sidebar-primary: oklch(0.735 0.108 68);
+  --sidebar-primary-foreground: oklch(0.196 0.018 258);
+  --sidebar-accent: oklch(0.302 0.020 258);
+  --sidebar-accent-foreground: oklch(0.928 0.008 110);
+  --sidebar-border: var(--rule);
+  --sidebar-ring: oklch(0.735 0.108 68);
 }
 
 @layer base {
@@ -132,7 +200,33 @@
   body {
     @apply bg-background text-foreground;
   }
+  /*
+   * Pointed straight at the next/font variable rather than `@apply font-sans`.
+   * The utility works, but this file has now broken the font twice through the
+   * theme indirection, and a page's base typeface should not depend on three
+   * hops resolving correctly.
+   */
   html {
-    @apply font-sans;
+    font-family: var(--font-body), ui-sans-serif, system-ui, sans-serif;
+  }
+  /*
+   * Headings carry the institutional register; body stays a plain-spoken
+   * grotesque. Using the serif everywhere would read as a law firm brochure.
+   */
+  h1, h2, h3 {
+    font-family: var(--font-display), ui-serif, Georgia, serif;
+    font-weight: 600;
+    letter-spacing: -0.011em;
+  }
+  /*
+   * Every screen in this product is a column of rupees and due dates. Lining
+   * figures that do not line up are the fastest way to look unserious about
+   * money.
+   */
+  table, .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+  code, pre, kbd, samp {
+    font-family: var(--font-mono-figures), ui-monospace, monospace;
   }
 }

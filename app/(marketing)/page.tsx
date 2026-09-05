@@ -1,315 +1,343 @@
+import Image from 'next/image'
 import Link from 'next/link'
-import { CalendarClock, Check, FileText, Receipt, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { PLANS } from '@/lib/plans'
 
-/** Placeholders until real beta CAs replace them. See the section comment. */
-const TESTIMONIAL_SLOTS = [
-  { id: 1, placeholder: 'Your words here.', persona: 'Solo CA · ITR and GST practice' },
-  { id: 2, placeholder: 'Your words here.', persona: 'Three-person firm · 120+ clients' },
-  { id: 3, placeholder: 'Your words here.', persona: 'Growing practice · Tier 2 city' },
-]
-
 /**
- * Four, not five. The AI notice drafter used to sit here as a fifth tile,
- * which left a hole in a three-column grid and buried the one feature CAs
- * actually tell each other about. It leads the page now instead.
+ * The landing page, built as a statutory document rather than a SaaS template.
+ *
+ * The identity here is carried by STRUCTURE, not colour: hairline rules where
+ * a template would put card borders, ruled columns, figures right-aligned and
+ * tabular, and section labels set like the clause markers on a filing. That is
+ * deliberate — a cream ground with a display serif and a terracotta accent is
+ * itself a house style now, and the point was to not look assembled.
+ *
+ * The stamp ochre is spent sparingly: section labels and the one marker on the
+ * drafted reply. It is never used for a button. The moment it appears
+ * everywhere it stops meaning anything.
  */
+
 const FEATURES = [
   {
-    icon: Users,
-    title: 'Every client in one place',
-    body: 'PAN, GSTIN, contact details and service tags. Replaces the WhatsApp contact list and the Excel sheet you keep meaning to tidy up.',
+    term: 'Client register',
+    detail:
+      'PAN, GSTIN, service tags and contact details in one record. Replaces the WhatsApp contact list and the spreadsheet nobody has opened since March.',
   },
   {
-    icon: CalendarClock,
-    title: 'Deadlines that fill themselves in',
-    body: 'Tag a client with ITR, GST, TDS or ROC and their filing calendar appears — every GSTR-1 on the 11th, every GSTR-3B on the 20th, already dated.',
+    term: 'Compliance calendar',
+    detail:
+      'Tag a client with ITR, GST, TDS or ROC and their filing dates appear — every GSTR-1 on the 11th, every GSTR-3B on the 20th, already dated, for every month ahead.',
   },
   {
-    icon: FileText,
-    title: 'Document collection without the chasing',
-    body: 'Build a checklist, send one WhatsApp link. Your client uploads from their phone camera. No login, no app, no lost forwards.',
+    term: 'Document collection',
+    detail:
+      'Build a checklist, send one WhatsApp link. Your client uploads from their phone camera. No login, no app, nothing lost in a forwarded thread.',
   },
   {
-    icon: Receipt,
-    title: 'Know what you are owed',
-    body: 'Log a fee per client per service. See collected, outstanding and overdue for the month at a glance.',
+    term: 'Fee register',
+    detail:
+      'Logged per client per service. Collected, outstanding and overdue for the month, which most small practices genuinely cannot state on demand.',
   },
 ]
 
-const PASTED = `Notice under section 143(2) of the
-Income-tax Act, 1961
+const PASTED = `NOTICE UNDER SECTION 143(2) OF THE
+INCOME-TAX ACT, 1961
 
-Your case has been selected for scrutiny
-under CASS on the following issues:
+DIN: ITBA/AST/S/143(2)/2026-27/10982…
+Date: 12/08/2026
+
+Your case has been selected for
+scrutiny under CASS on the following
+issues:
  (i)  Large deduction claimed under
-      Chapter VI-A…
+      Chapter VI-A
  (ii) Substantial cash deposits not
-      commensurate with turnover…`
+      commensurate with turnover`
 
-const DRAFTED = `Respected Sir/Madam,
+const DRAFTED = `To,
+The Assessing Officer
+Circle 2(1), Pune
+DIN: ITBA/AST/S/143(2)/2026-27/10982…
+
+Respected Sir/Madam,
 
 With reference to the captioned notice
 dated 12/08/2026 issued under section
-143(2)… the assessee respectfully
-submits as under.
+143(2) for Assessment Year 2026-27, the
+assessee respectfully submits as under.
 
 1. Large deduction claimed under
    Chapter VI-A
 
    The deduction claimed in the return
-   of income is ₹[insert amount]…`
+   of income is ₹[state amount]…`
 
-/**
- * The product, shown doing the thing. This sits in the hero because a page
- * that only asserts is a page nobody believes, and this is the single output
- * a CA can judge in five seconds.
- */
-function NoticeDemo() {
+/** A clause marker. Small, ochre, letterspaced — the page's only stamp. */
+function Marker({ children }: { children: React.ReactNode }) {
   return (
-    <div>
-      <div className="grid gap-4 lg:grid-cols-2">
-        <div className="rounded-xl border bg-muted/40 p-5">
-          <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-            You paste
-          </p>
-          <pre className="mt-3 overflow-x-auto font-mono text-xs leading-relaxed whitespace-pre-wrap text-muted-foreground">
-            {PASTED}
-          </pre>
-        </div>
-
-        <div className="rounded-xl border bg-background p-5 shadow-sm">
-          <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-            You get, in under 30 seconds
-          </p>
-          <pre className="mt-3 overflow-x-auto font-mono text-xs leading-relaxed whitespace-pre-wrap">
-            {DRAFTED}
-          </pre>
-        </div>
-      </div>
-
-      <p className="mx-auto mt-4 max-w-2xl text-center text-xs text-pretty text-muted-foreground">
-        Figures are left as placeholders, never invented. You fill them in and take professional
-        responsibility, as you always have.
-      </p>
-    </div>
+    <p className="text-brand text-xs font-semibold tracking-[0.14em] uppercase">{children}</p>
   )
 }
 
 export default function LandingPage() {
   return (
     <main>
-      {/*
-        The hero carries the product, not just a promise. The previous version
-        was type and buttons alone, which left a screen of empty page above the
-        fold and gave a visitor nothing to believe.
-      */}
-      <section className="mx-auto w-full max-w-5xl px-4 pt-16 pb-16 sm:pt-20">
-        <div className="mx-auto max-w-3xl text-center">
-          <p className="text-sm font-medium text-muted-foreground">
-            Practice management for Indian CA firms
-          </p>
-          <h1 className="mt-4 text-4xl font-semibold tracking-tight text-balance sm:text-5xl">
+      {/* ── Hero ──────────────────────────────────────────────────────── */}
+      <section className="mx-auto w-full max-w-5xl px-6 pt-16 pb-14 sm:pt-24">
+        <div className="mx-auto max-w-2xl text-center">
+          <Marker>Practice management for Indian CA firms</Marker>
+          <h1 className="mt-5 text-4xl leading-[1.08] font-semibold tracking-tight text-balance sm:text-[3.4rem]">
             Run your CA firm without the chaos
           </h1>
-          <p className="mx-auto mt-5 max-w-xl text-lg text-pretty text-muted-foreground">
+          <p className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-pretty text-muted-foreground">
             Client deadlines, document collection, fee tracking and AI-drafted IT notice replies —
             in one place, built for firms of one to five people.
           </p>
-          <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
-            <Button size="lg" className="h-11 px-6" nativeButton={false} render={<Link href="/signup" />}>
-              Start Free — No Credit Card
+          <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:justify-center">
+            <Button size="lg" className="h-11 px-7" nativeButton={false} render={<Link href="/signup" />}>
+              Start free — no credit card
             </Button>
             <Button
               size="lg"
               variant="outline"
-              className="h-11 px-6"
+              className="h-11 px-7"
               nativeButton={false}
               render={<Link href="/how-it-works" />}
             >
               See how it works
             </Button>
           </div>
-          <p className="mt-4 text-sm text-muted-foreground">
+          <p className="mt-5 text-sm text-muted-foreground">
             Free for up to 10 clients · Set up in under 5 minutes
           </p>
         </div>
+      </section>
 
-        <div className="mt-14">
-          <p className="mb-5 text-center text-sm font-medium">
-            The notice reply that took an hour, in half a minute
-          </p>
-          <NoticeDemo />
+      {/* ── The notice drafter, presented as a specimen document ──────── */}
+      <section className="border-t border-rule bg-card/40">
+        <div className="mx-auto w-full max-w-5xl px-6 py-16">
+          <div className="mx-auto max-w-2xl text-center">
+            <Marker>The drafting</Marker>
+            <h2 className="mt-4 text-2xl font-semibold tracking-tight text-balance sm:text-3xl">
+              An hour of drafting, in half a minute
+            </h2>
+          </div>
+
+          {/*
+            Framed like a document under review: a header strip, then two
+            columns split by a single hairline. Not two cards — a ledger has
+            rules, not boxes.
+          */}
+          <div className="mt-10 overflow-hidden rounded-sm border border-rule bg-background">
+            <div className="grid divide-y divide-rule md:grid-cols-2 md:divide-x md:divide-y-0">
+              <div>
+                <p className="border-b border-rule px-5 py-2.5 text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
+                  Notice, as received
+                </p>
+                <pre className="overflow-x-auto px-5 py-5 font-mono text-xs leading-relaxed whitespace-pre text-muted-foreground">
+                  {PASTED}
+                </pre>
+              </div>
+              <div>
+                {/* The one place the stamp appears in this section. */}
+                <p className="text-brand border-b border-rule px-5 py-2.5 text-[11px] font-semibold tracking-[0.12em] uppercase">
+                  Draft reply, 28 seconds later
+                </p>
+                <pre className="overflow-x-auto px-5 py-5 font-mono text-xs leading-relaxed whitespace-pre">
+                  {DRAFTED}
+                </pre>
+              </div>
+            </div>
+            <p className="border-t border-rule px-5 py-3 text-xs text-muted-foreground">
+              The DIN, section, date and assessment year are carried through from the notice.
+              Figures are left as <span className="font-mono">₹[state amount]</span> — never
+              invented. You fill them in and sign, as you always have.
+            </p>
+          </div>
         </div>
       </section>
 
-      {/*
-        Rhythm: this is the second-most important section, so it gets the
-        heavier treatment — tinted ground, generous padding. The founding-firm
-        band below is the least important and is sized accordingly.
-      */}
-      <section className="border-t bg-muted/30">
-        <div className="mx-auto w-full max-w-5xl px-4 py-20">
+      {/* ── The actual product ───────────────────────────────────────── */}
+      <section className="border-t border-rule">
+        <div className="mx-auto w-full max-w-5xl px-6 py-16">
           <div className="mx-auto max-w-2xl text-center">
-            <h2 className="text-2xl font-semibold tracking-tight text-balance sm:text-3xl">
-              And everything else the firm runs on
+            <Marker>The software</Marker>
+            <h2 className="mt-4 text-2xl font-semibold tracking-tight text-balance sm:text-3xl">
+              What you open at nine in the morning
             </h2>
-            <p className="mt-3 text-pretty text-muted-foreground">
-              The parts that live in WhatsApp threads and a spreadsheet nobody has opened since
-              March.
+            <p className="mt-4 text-pretty text-muted-foreground">
+              Not a report you run. The four things that decide your day, with whatever is already
+              past its due date at the top.
             </p>
           </div>
 
-          <div className="mt-12 grid gap-5 sm:grid-cols-2">
-            {FEATURES.map(({ icon: Icon, title, body }) => (
-              <div key={title} className="rounded-xl border bg-background p-6">
-                <Icon className="size-5 text-muted-foreground" aria-hidden />
-                <h3 className="mt-4 font-medium">{title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{body}</p>
-              </div>
-            ))}
+          <figure className="mt-10">
+            <div className="overflow-hidden rounded-sm border border-rule bg-background">
+              <Image
+                src="/product/dashboard.png"
+                alt="The CAConnect dashboard: overdue filings, deadlines due in seven days, client count and fees overdue, above a list of filings past their due date."
+                width={1360}
+                height={470}
+                className="w-full"
+                priority
+              />
+            </div>
+            <figcaption className="mt-3 text-center text-xs text-muted-foreground">
+              A live account. Overdue filings first, because that is the order the day happens in.
+            </figcaption>
+          </figure>
+
+          <figure className="mt-10">
+            <div className="overflow-hidden rounded-sm border border-rule bg-background">
+              <Image
+                src="/product/fees.png"
+                alt="The fee register: collected this month, outstanding and overdue totals above a table of fees by client."
+                width={1360}
+                height={470}
+                className="w-full"
+              />
+            </div>
+            <figcaption className="mt-3 text-center text-xs text-muted-foreground">
+              Collected, outstanding, overdue. Three numbers most practices cannot state on demand.
+            </figcaption>
+          </figure>
+        </div>
+      </section>
+
+      {/* ── Features, as a ruled schedule ────────────────────────────── */}
+      <section className="border-t border-rule bg-card/40">
+        <div className="mx-auto w-full max-w-5xl px-6 py-16">
+          <div className="mx-auto max-w-2xl text-center">
+            <Marker>The rest of the practice</Marker>
+            <h2 className="mt-4 text-2xl font-semibold tracking-tight text-balance sm:text-3xl">
+              Everything else the firm runs on
+            </h2>
           </div>
 
-          <div className="mt-12 text-center">
-            <Button size="lg" className="h-11 px-6" nativeButton={false} render={<Link href="/signup" />}>
-              Start Free — No Credit Card
+          {/*
+            A schedule, not a card grid: term on the left, detail on the right,
+            separated by hairlines. This is how a compliance annexure reads.
+          */}
+          <dl className="mx-auto mt-10 max-w-3xl divide-y divide-rule border-y border-rule">
+            {FEATURES.map(({ term, detail }) => (
+              <div key={term} className="grid gap-2 py-5 sm:grid-cols-[190px_1fr] sm:gap-8">
+                <dt className="font-medium">{term}</dt>
+                <dd className="text-pretty text-muted-foreground">{detail}</dd>
+              </div>
+            ))}
+          </dl>
+
+          <div className="mt-10 text-center">
+            <Button size="lg" className="h-11 px-7" nativeButton={false} render={<Link href="/signup" />}>
+              Start free — no credit card
             </Button>
           </div>
         </div>
       </section>
 
-      {/*
-        Testimonial slots, per the platform decisions doc. Deliberately empty
-        until real beta CAs say something — inventing quotes for a product with
-        no users would be fabricating social proof.
-
-        Kept visually quiet on purpose: three prominent empty boxes read as
-        "nobody uses this", which is worse than saying plainly that we are
-        still onboarding the first firms.
-      */}
-      <section className="border-t">
-        <div className="mx-auto w-full max-w-5xl px-4 py-14">
+      {/* ── Pricing, as a ruled schedule of rates ────────────────────── */}
+      <section className="border-t border-rule">
+        <div className="mx-auto w-full max-w-5xl px-6 py-16">
           <div className="mx-auto max-w-2xl text-center">
-            <h2 className="text-lg font-semibold tracking-tight">From the CAs using it</h2>
-            <p className="mt-1.5 text-sm text-muted-foreground">
-              We are onboarding our first firms now. These are their seats — we would rather leave
-              them empty than invent quotes.
-            </p>
-          </div>
-
-          <div className="mt-8 grid gap-3 sm:grid-cols-3">
-            {TESTIMONIAL_SLOTS.map((slot) => (
-              <figure
-                key={slot.id}
-                className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground"
-              >
-                <blockquote className="italic">&ldquo;{slot.placeholder}&rdquo;</blockquote>
-                <figcaption className="mt-3 text-xs">
-                  <span className="block font-medium text-foreground/70">Reserved</span>
-                  {slot.persona}
-                </figcaption>
-              </figure>
-            ))}
-          </div>
-
-          <p className="mt-8 text-center text-sm">
-            <Link href="/signup" className="font-medium underline underline-offset-4">
-              Be one of the first 20 firms
-            </Link>{' '}
-            <span className="text-muted-foreground">— free while we build with you.</span>
-          </p>
-        </div>
-      </section>
-
-      <section className="border-t bg-muted/30">
-        <div className="mx-auto w-full max-w-5xl px-4 py-20">
-          <div className="mx-auto max-w-2xl text-center">
-            <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">Simple pricing</h2>
-            <p className="mt-3 text-muted-foreground">
+            <Marker>Schedule of rates</Marker>
+            <h2 className="mt-4 text-2xl font-semibold tracking-tight text-balance sm:text-3xl">
+              Simple pricing
+            </h2>
+            <p className="mt-4 text-muted-foreground">
               Start free. Upgrade when your client list outgrows it.
             </p>
           </div>
 
-          <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {/*
+            Columns divided by hairlines rather than four bordered cards. Team
+            carries the one ochre marker because it is the tier that holds the
+            multi-user, portal and staff features.
+          */}
+          <div className="mt-10 grid divide-y divide-rule border-y border-rule sm:grid-cols-2 sm:divide-y-0 lg:grid-cols-4 lg:divide-x">
             {(['starter', 'solo', 'pro', 'team'] as const).map((tier) => {
               const plan = PLANS[tier]
-              // Team is the tier that carries the multi-user, staff assignment
-              // and client portal features, so it is the one worth pointing at
-              // — not Solo, which was highlighted before any of that existed.
-              const highlighted = tier === 'team'
+              const flagship = tier === 'team'
               return (
-                <div
-                  key={tier}
-                  className={
-                    highlighted
-                      ? 'relative rounded-xl border-2 border-primary bg-background p-6 shadow-sm'
-                      : 'rounded-xl border bg-background p-6'
-                  }
-                >
-                  {/*
-                    The badge row is always rendered, empty or not. Only two of
-                    the four tiers carry a label, and letting it collapse left
-                    Starter and Pro sitting a line higher than their
-                    neighbours — a misalignment you see immediately across a
-                    row of four.
-                  */}
+                <div key={tier} className="px-5 py-6 first:pl-0 last:pr-0">
                   <p
                     className={
-                      highlighted
-                        ? 'mb-2 h-4 text-xs font-medium text-primary'
-                        : 'mb-2 h-4 text-xs font-medium text-muted-foreground'
+                      flagship
+                        ? 'text-brand h-4 text-[11px] font-semibold tracking-[0.12em] uppercase'
+                        : 'h-4 text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase'
                     }
                   >
-                    {highlighted ? 'Best for growing firms' : tier === 'solo' ? 'Most popular' : ''}
+                    {flagship ? 'Growing firms' : tier === 'solo' ? 'Most popular' : ''}
                   </p>
-                  <h3 className="font-medium">{plan.name}</h3>
-                  <p className="mt-2 text-3xl font-semibold">
-                    {plan.priceMonthly === 0
-                      ? 'Free'
-                      : `₹${plan.priceMonthly.toLocaleString('en-IN')}`}
+                  <h3 className="mt-3 font-medium">{plan.name}</h3>
+                  <p className="tabular mt-1 text-3xl font-semibold">
+                    {plan.priceMonthly === 0 ? 'Free' : `₹${plan.priceMonthly.toLocaleString('en-IN')}`}
                     {plan.priceMonthly > 0 && (
-                      <span className="text-sm font-normal text-muted-foreground">/month</span>
+                      <span className="text-sm font-normal text-muted-foreground">/mo</span>
                     )}
                   </p>
-                  <ul className="mt-5 space-y-2.5 text-sm text-muted-foreground">
-                    <li className="flex gap-2">
-                      <Check className="size-4 shrink-0 text-foreground" aria-hidden />
-                      {Number.isFinite(plan.maxClients)
-                        ? `Up to ${plan.maxClients} clients`
-                        : 'Unlimited clients'}
-                    </li>
-                    <li className="flex gap-2">
-                      <Check className="size-4 shrink-0 text-foreground" aria-hidden />
-                      {Number.isFinite(plan.aiDraftsPerMonth)
-                        ? `${plan.aiDraftsPerMonth} AI drafts a month`
-                        : 'Unlimited AI drafts'}
-                    </li>
-                    <li className="flex gap-2">
-                      <Check className="size-4 shrink-0 text-foreground" aria-hidden />
-                      {plan.maxMembers === 1
-                        ? 'Single login'
-                        : Number.isFinite(plan.maxMembers)
-                          ? `${plan.maxMembers} team members`
-                          : 'Unlimited team members'}
-                    </li>
-                    <li className="flex gap-2">
-                      <Check className="size-4 shrink-0 text-foreground" aria-hidden />
-                      {plan.clientPortal ? 'Client portals included' : 'All five core features'}
-                    </li>
-                  </ul>
+
+                  <dl className="mt-5 space-y-2 text-sm">
+                    {[
+                      [
+                        'Clients',
+                        Number.isFinite(plan.maxClients) ? String(plan.maxClients) : 'Unlimited',
+                      ],
+                      [
+                        'AI drafts',
+                        Number.isFinite(plan.aiDraftsPerMonth)
+                          ? `${plan.aiDraftsPerMonth} / month`
+                          : 'Unlimited',
+                      ],
+                      [
+                        'Team',
+                        plan.maxMembers === 1
+                          ? 'Single login'
+                          : Number.isFinite(plan.maxMembers)
+                            ? `${plan.maxMembers} people`
+                            : 'Unlimited',
+                      ],
+                      ['Client portals', plan.clientPortal ? 'Included' : '—'],
+                    ].map(([k, v]) => (
+                      <div key={k} className="flex justify-between gap-3">
+                        <dt className="text-muted-foreground">{k}</dt>
+                        <dd className="tabular text-right font-medium">{v}</dd>
+                      </div>
+                    ))}
+                  </dl>
                 </div>
               )
             })}
           </div>
 
-          <div className="mt-12 text-center">
-            <Button size="lg" className="h-11 px-6" nativeButton={false} render={<Link href="/signup" />}>
-              Start Free — No Credit Card
+          <div className="mt-10 text-center">
+            <Button size="lg" className="h-11 px-7" nativeButton={false} render={<Link href="/signup" />}>
+              Start free — no credit card
             </Button>
             <p className="mt-3 text-sm text-muted-foreground">
-              No card. No trial clock. Upgrades are applied by hand while we are small.
+              No card, no trial clock. Upgrades are applied by hand while we are small.
             </p>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Founding firms ──────────────────────────────────────────── */}
+      <section className="border-t border-rule bg-card/40">
+        <div className="mx-auto w-full max-w-5xl px-6 py-14">
+          <div className="mx-auto max-w-2xl text-center">
+            <Marker>Currently onboarding</Marker>
+            <h2 className="mt-4 text-xl font-semibold tracking-tight text-balance">
+              We are signing up the first twenty firms
+            </h2>
+            <p className="mt-3 text-pretty text-muted-foreground">
+              You would be early. That means the compliance rules get checked against your
+              practice, and what you ask for gets built. It also means there are no testimonials on
+              this page yet — we would rather leave the space empty than invent one.
+            </p>
+            <div className="mt-7">
+              <Button size="lg" className="h-11 px-7" nativeButton={false} render={<Link href="/signup" />}>
+                Take one of the twenty seats
+              </Button>
+            </div>
           </div>
         </div>
       </section>

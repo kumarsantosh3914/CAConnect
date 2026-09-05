@@ -385,19 +385,50 @@ Not built, deliberately: featured/premium placement is only a column
 
 ## Design notes
 
-**Typography.** `app/globals.css` maps `--font-sans` / `--font-heading` to the
-`--font-geist-sans` variable that `app/layout.tsx` defines via next/font. Until
-2026-09-05 `--font-sans` referenced *itself*, which resolves to nothing, so
-`html { @apply font-sans }` fell through to the browser default: the entire app
-rendered in Times while three Geist woff2 files downloaded on every page load
-and were discarded. If text ever looks like a Word document again, check that
-mapping first.
+**Statutory ledger — the visual direction (2026-09-05).** Chosen with the user
+after a frontend engineer's feedback that the site read as "vibe coded". The
+old look — Geist + untouched shadcn defaults + a palette where 59 of 62 tokens
+were pure greyscale — is the exact fingerprint of a generated Next.js app, and
+it was recognisable in about a second.
 
-**Colour.** The palette is deliberately near-monochrome, but note what that
-means today: of 62 tokens in `globals.css` only three carry any chroma, and two
-of those are `--destructive`. The only colour a user sees is an error state.
-Introducing a brand accent is an open decision, not an oversight — it would
-touch every page, so it has not been done unilaterally.
+The identity is carried by **structure, not colour**: hairline rules where a
+template puts card borders, ruled schedules instead of feature-card grids,
+figures right-aligned and tabular, section labels set like clause markers.
+That was deliberate — warm cream + display serif + terracotta is *itself* an
+AI house style now, so the ground is cool paper (a government form) rather than
+cream.
+
+- `--brand` is the stamp ochre and is spent SPARINGLY: section markers and one
+  label on the drafted reply. It is deliberately **not** `--primary`, so
+  buttons stay ink navy and read authoritative rather than branded. The moment
+  ochre is on every button it stops meaning anything.
+- `--verified` is a filing green for filed/paid states, kept distinct from the
+  brand so semantic colour never competes with identity.
+- `--radius` is `0.25rem`. Ten-pixel rounding reads as a consumer app.
+- `--rule` is a first-class token because hairlines do the work here.
+
+**Typefaces are chosen from the subject:** Public Sans was drawn for the US Web
+Design System — a face for government forms; Source Serif carries the register
+of a statutory letter in headings; IBM Plex Mono has true tabular figures, and
+every screen is a column of rupees and due dates.
+
+**Fonts have silently broken twice.** `app/globals.css` maps `--font-sans` /
+`--font-mono` / `--font-heading` onto the `--font-body` / `--font-mono-figures`
+/ `--font-display` variables that `app/layout.tsx` defines via next/font. Once
+`--font-sans` referenced itself; once the mapping was left pointing at deleted
+Geist variables. Both times every page fell back to the browser serif and
+rendered in Times. `html` now sets `font-family` directly rather than relying
+on `@apply font-sans`. **If text ever looks like a Word document, check those
+three lines against layout.tsx before anything else.**
+
+**Dark mode is written but dormant.** A full dark palette exists under `.dark`,
+but nothing in the app ever sets that class — there is no theme provider. It is
+ready if one is added; until then it is unreachable, not broken.
+
+**Product screenshots** live in `public/product/` and are captured from a real
+seeded account. They are the landing page's main credibility asset — re-shoot
+them whenever the app chrome changes, or the marketing page will advertise a
+product that no longer looks like that.
 
 **Two audiences.** Since the marketplace shipped, the marketing header serves
 both CAs and people looking to hire one. The concrete problem is that the

@@ -1,15 +1,38 @@
 import type { Metadata, Viewport } from 'next'
-import { Geist, Geist_Mono } from 'next/font/google'
+import { IBM_Plex_Mono, Public_Sans, Source_Serif_4 } from 'next/font/google'
 import { Toaster } from '@/components/ui/sonner'
 import './globals.css'
 
-const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] })
-const geistMono = Geist_Mono({ variable: '--font-geist-mono', subsets: ['latin'] })
+/*
+ * The type is chosen from the subject, not from the framework.
+ *
+ * Public Sans was drawn for the US Web Design System — a face made for
+ * government forms, which is what a CA reads all day. Source Serif carries the
+ * institutional register of a statutory letter in headings without tipping into
+ * the trendy display serifs. IBM Plex Mono has true tabular figures, and every
+ * screen here is a column of rupees and due dates that has to line up.
+ */
+const bodyFont = Public_Sans({
+  variable: '--font-body',
+  subsets: ['latin'],
+  display: 'swap',
+})
+const displayFont = Source_Serif_4({
+  variable: '--font-display',
+  subsets: ['latin'],
+  display: 'swap',
+})
+const monoFont = IBM_Plex_Mono({
+  variable: '--font-mono-figures',
+  subsets: ['latin'],
+  weight: ['400', '500', '600'],
+  display: 'swap',
+})
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#ffffff' },
-    { media: '(prefers-color-scheme: dark)', color: '#0F172A' },
+    { media: '(prefers-color-scheme: light)', color: '#F7F8F4' },
+    { media: '(prefers-color-scheme: dark)', color: '#12161C' },
   ],
 }
 
@@ -33,7 +56,10 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<'/'>) {
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
+    <html
+      lang="en"
+      className={`${bodyFont.variable} ${displayFont.variable} ${monoFont.variable} h-full antialiased`}
+    >
       <body className="min-h-full flex flex-col">
         {children}
         <Toaster position="top-right" richColors />
