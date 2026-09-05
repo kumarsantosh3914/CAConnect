@@ -108,6 +108,54 @@ export async function expireDocumentRequest(
   return { ok: true }
 }
 
+export async function resendKycLink(
+  requestId: string
+): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
+  const ctx = await getApiFirm()
+  if (!ctx) return { ok: false, error: 'Your session has expired. Please log in again.' }
+  const supabase = await createClient()
+  const expiresAt = new Date()
+  expiresAt.setDate(expiresAt.getDate() + 7)
+  const { data, error } = await supabase
+    .from('document_requests')
+    .update({ token: generateUploadToken(), expires_at: expiresAt.toISOString(), status: 'open', completed_at: null })
+    .eq('id', requestId)
+    .eq('request_kind', 'kyc')
+    .select('token,client_id')
+    .maybeSingle()
+  if (error || !data) return { ok: false, error: 'Could not refresh that KYC link.' }
+  revalidatePath('/documents')
+  revalidatePath(`/clients/${data.client_id}`)
+  return { ok: true, url: `${await requestOrigin()}/upload/${data.token}` }
+}
+
+export async function reviewKycItem(
+  itemId: string,
+  status: 'verified' | 'reupload_requested',
+  note?: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const ctx = await getApiFirm()
+  if (!ctx) return { ok: false, error: 'Your session has expired. Please log in again.' }
+  const supabase = await createClient()
+  const { data: item } = await supabase
+    .from('document_request_items')
+    .select('id,request_id,document_requests!inner(id,client_id,request_kind)')
+    .eq('id', itemId)
+    .eq('document_requests.request_kind', 'kyc')
+    .maybeSingle()
+  if (!item) return { ok: false, error: 'That KYC item could not be found.' }
+  const { error } = await supabase.from('document_request_items').update({ verification_status: status, verification_note: note?.trim() || null }).eq('id', itemId)
+  if (error) return { ok: false, error: 'Could not update that KYC item.' }
+  const { data: items } = await supabase.from('document_request_items').select('is_required,verification_status').eq('request_id', item.request_id)
+  const completed = (items ?? []).filter((row) => row.is_required).every((row) => row.verification_status === 'verified')
+  const clientId = item.document_requests.client_id
+  await supabase.from('document_requests').update({ status: completed ? 'completed' : status === 'reupload_requested' ? 'open' : 'submitted', completed_at: completed ? new Date().toISOString() : null }).eq('id', item.request_id)
+  revalidatePath('/documents')
+  revalidatePath(`/clients/${clientId}`)
+  revalidatePath('/dashboard')
+  return { ok: true }
+}
+
 /**
  * Short-lived signed URL for a private storage object.
  *

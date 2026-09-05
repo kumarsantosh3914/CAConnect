@@ -9,6 +9,10 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { MatterControls } from './matter-controls'
+import type { NoticeCaseStatus } from '@/types/database'
+import type { NoticeHearing, NoticeEvent } from '@/lib/notices/queries'
+import { formatDate, statusLabel } from '@/lib/format'
 
 export function NoticeDetail({
   noticeId,
@@ -18,14 +22,22 @@ export function NoticeDetail({
   clientId,
   draftResponse,
   editedResponse,
+  trackerEnabled,
+  caseStatus,
+  hearings = [],
+  events = [],
 }: {
   noticeId: string
   title: string
-  noticeText: string
+  noticeText: string | null
   noticeType: string | null
   clientId: string | null
   draftResponse: string | null
   editedResponse: string | null
+  trackerEnabled: boolean
+  caseStatus: NoticeCaseStatus | null
+  hearings?: NoticeHearing[]
+  events?: NoticeEvent[]
 }) {
   const router = useRouter()
   // The CA's edits live in their own column, so the original AI draft is never
@@ -133,6 +145,7 @@ export function NoticeDetail({
   }
 
   return (
+    <>
     <Tabs defaultValue="draft">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <TabsList>
@@ -147,7 +160,7 @@ export function NoticeDetail({
               Revert to AI draft
             </Button>
           )}
-          <Button
+          {noticeText && <Button
             variant="outline"
             size="sm"
             disabled={isRegenerating}
@@ -159,7 +172,8 @@ export function NoticeDetail({
               <Sparkles className="size-4" aria-hidden />
             )}
             {isRegenerating ? 'Drafting…' : 'Regenerate'}
-          </Button>
+          </Button>}
+          <MatterControls noticeId={noticeId} tracked={trackerEnabled} status={caseStatus} canTrack={Boolean(clientId)} />
           <Button variant="outline" size="sm" onClick={onCopy}>
             <Copy className="size-4" aria-hidden />
             Copy
@@ -207,9 +221,49 @@ export function NoticeDetail({
 
       <TabsContent value="notice">
         <pre className="max-h-[70svh] overflow-auto rounded-lg border bg-muted/30 p-4 font-mono text-xs leading-relaxed whitespace-pre-wrap">
-          {noticeText}
+          {noticeText ?? 'No source text was attached to this manually created matter.'}
         </pre>
       </TabsContent>
     </Tabs>
+
+    {trackerEnabled && (hearings.length > 0 || events.length > 0) && (
+      <div className="space-y-3">
+        {hearings.length > 0 && (
+          <div>
+            <h3 className="mb-2 text-sm font-medium">Hearing dates</h3>
+            <ul className="space-y-1">
+              {hearings.map((h) => (
+                <li key={h.id} className="flex items-start gap-3 rounded-md border px-3 py-2 text-sm">
+                  <span className="shrink-0 font-mono tabular-nums text-muted-foreground">{formatDate(h.hearing_date)}</span>
+                  {h.notes && <span className="text-muted-foreground">{h.notes}</span>}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {events.length > 0 && (
+          <div>
+            <h3 className="mb-2 text-sm font-medium">Activity log</h3>
+            <ol className="space-y-1">
+              {events.map((e) => (
+                <li key={e.id} className="flex items-start gap-3 text-sm">
+                  <span className="shrink-0 text-xs text-muted-foreground tabular-nums pt-0.5">{formatDate(e.created_at)}</span>
+                  <span>
+                    {e.event_type === 'status_change' ? (
+                      <span>
+                        Status changed{e.from_status ? ` from ${statusLabel(e.from_status)}` : ''} to <strong>{statusLabel(e.to_status ?? '')}</strong>
+                      </span>
+                    ) : (
+                      e.body
+                    )}
+                  </span>
+                </li>
+              ))}
+            </ol>
+          </div>
+        )}
+      </div>
+    )}
+    </>
   )
 }

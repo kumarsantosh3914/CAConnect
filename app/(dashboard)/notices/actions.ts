@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { getApiFirm } from '@/lib/auth'
 import { extractPdfText, PDF_LIMITS } from '@/lib/notices/pdf'
+import type { NoticeCaseStatus } from '@/types/database'
 
 export type NoticeActionResult =
   | { ok: true; noticeId: string }
@@ -86,6 +87,85 @@ export async function deleteNotice(noticeId: string): Promise<NoticeActionResult
 
   revalidatePath('/notices')
   return { ok: true, noticeId }
+}
+
+const matterSchema = z.object({
+  client_id: z.string().uuid('Pick a client'),
+  title: z.string().trim().min(1, 'Give this matter a title').max(160),
+  notice_type: z.string().trim().min(1, 'Choose a notice type').max(60),
+  notice_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  response_deadline: z.union([z.literal(''), z.string().regex(/^\d{4}-\d{2}-\d{2}$/)]),
+  amount_in_dispute: z.union([z.literal(''), z.string().regex(/^\d+(\.\d{1,2})?$/)]),
+  notes: z.string().trim().max(4000).optional(),
+})
+
+function paise(value: string): number | null {
+  if (!value) return null
+  const [whole, fractional = ''] = value.split('.')
+  return Number(whole) * 100 + Number((fractional + '00').slice(0, 2))
+}
+
+export async function createNoticeMatter(input: z.infer<typeof matterSchema>): Promise<NoticeActionResult> {
+  const ctx = await getApiFirm()
+  if (!ctx) return { ok: false, error: 'Your session has expired. Please log in again.' }
+  const parsed = matterSchema.safeParse(input)
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? 'Please check the matter.' }
+  const supabase = await createClient()
+  const { data: client } = await supabase.from('clients').select('assigned_to').eq('id', parsed.data.client_id).maybeSingle()
+  if (!client) return { ok: false, error: 'That client could not be found.' }
+  const { data, error } = await supabase.from('notices').insert({
+    firm_id: ctx.firm.firmId, created_by: ctx.user.id, client_id: parsed.data.client_id,
+    title: parsed.data.title, notice_type: parsed.data.notice_type, source: 'paste', notice_text: null,
+    tracker_enabled: true, case_status: 'received', notice_date: parsed.data.notice_date,
+    response_deadline: parsed.data.response_deadline || null, amount_in_dispute_paise: paise(parsed.data.amount_in_dispute),
+    assigned_to: client.assigned_to ?? ctx.user.id,
+  }).select('id').single()
+  if (error || !data) return { ok: false, error: 'Could not add that matter.' }
+  if (parsed.data.notes) await supabase.from('notice_events').insert({ firm_id: ctx.firm.firmId, notice_id: data.id, event_type: 'note', body: parsed.data.notes, created_by: ctx.user.id })
+  revalidatePath('/notices'); revalidatePath('/dashboard'); revalidatePath(`/clients/${parsed.data.client_id}`)
+  return { ok: true, noticeId: data.id }
+}
+
+export async function saveToNoticeTracker(noticeId: string): Promise<NoticeActionResult> {
+  const ctx = await getApiFirm()
+  if (!ctx) return { ok: false, error: 'Your session has expired. Please log in again.' }
+  const supabase = await createClient()
+  const { data: notice } = await supabase.from('notices').select('client_id').eq('id', noticeId).maybeSingle()
+  if (!notice?.client_id) return { ok: false, error: 'Link this draft to a client before tracking it.' }
+  const { data: client } = await supabase.from('clients').select('assigned_to').eq('id', notice.client_id).maybeSingle()
+  const { error } = await supabase.from('notices').update({ tracker_enabled: true, case_status: 'response_drafted', assigned_to: client?.assigned_to ?? ctx.user.id }).eq('id', noticeId)
+  if (error) return { ok: false, error: 'Could not add this notice to the tracker.' }
+  await supabase.from('notice_events').insert({ firm_id: ctx.firm.firmId, notice_id: noticeId, event_type: 'status_change', to_status: 'response_drafted', created_by: ctx.user.id })
+  revalidatePath('/notices'); revalidatePath(`/notices/${noticeId}`); revalidatePath('/dashboard')
+  return { ok: true, noticeId }
+}
+
+const caseStatuses: NoticeCaseStatus[] = ['received', 'response_drafted', 'response_sent', 'hearing_scheduled', 'order_received', 'closed', 'appeal_filed', 'appeal_pending', 'appeal_order']
+
+export async function updateMatterStatus(noticeId: string, status: NoticeCaseStatus, note?: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  const ctx = await getApiFirm()
+  if (!ctx) return { ok: false, error: 'Your session has expired. Please log in again.' }
+  if (!caseStatuses.includes(status)) return { ok: false, error: 'Invalid matter status.' }
+  const supabase = await createClient()
+  const { data: notice } = await supabase.from('notices').select('case_status,client_id').eq('id', noticeId).eq('tracker_enabled', true).maybeSingle()
+  if (!notice) return { ok: false, error: 'That matter could not be found.' }
+  const { error } = await supabase.from('notices').update({ case_status: status }).eq('id', noticeId)
+  if (error) return { ok: false, error: 'Could not update the matter.' }
+  await supabase.from('notice_events').insert({ firm_id: ctx.firm.firmId, notice_id: noticeId, event_type: 'status_change', body: note?.trim() || null, from_status: notice.case_status, to_status: status, created_by: ctx.user.id })
+  revalidatePath('/notices'); revalidatePath(`/notices/${noticeId}`); revalidatePath('/dashboard'); if (notice.client_id) revalidatePath(`/clients/${notice.client_id}`)
+  return { ok: true }
+}
+
+export async function addHearing(noticeId: string, hearingDate: string, notes?: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  const ctx = await getApiFirm()
+  if (!ctx) return { ok: false, error: 'Your session has expired. Please log in again.' }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(hearingDate)) return { ok: false, error: 'Enter a valid hearing date.' }
+  const supabase = await createClient()
+  const { error } = await supabase.from('notice_hearings').insert({ firm_id: ctx.firm.firmId, notice_id: noticeId, hearing_date: hearingDate, notes: notes?.trim() || null, created_by: ctx.user.id })
+  if (error) return { ok: false, error: 'Could not add that hearing.' }
+  await updateMatterStatus(noticeId, 'hearing_scheduled')
+  revalidatePath('/notices/calendar')
+  return { ok: true }
 }
 
 /**

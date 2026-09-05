@@ -43,7 +43,7 @@ export async function lookupUploadRequest(token: string): Promise<UploadRequestL
     // Must be a single string literal — supabase-js infers result types by
     // parsing it, and a concatenated expression defeats that.
     .select(
-      'id,firm_id,client_id,title,message,status,expires_at,clients(name),document_request_items(id,label,is_required,sort_order,fulfilled_document_id)'
+      'id,firm_id,client_id,title,message,status,expires_at,clients(name),document_request_items(id,label,is_required,sort_order,fulfilled_document_id,verification_status)'
     )
     .eq('token', token)
     .maybeSingle()
@@ -51,6 +51,7 @@ export async function lookupUploadRequest(token: string): Promise<UploadRequestL
   if (error || !data) return { ok: false, reason: 'not_found' }
   if (new Date(data.expires_at) < new Date()) return { ok: false, reason: 'expired' }
   if (data.status === 'expired') return { ok: false, reason: 'expired' }
+  if (data.status === 'completed') return { ok: false, reason: 'completed' }
 
   // The firm's name, for the client-facing page header. Firm-level now, so it
   // comes from firms rather than the owner's profile.
@@ -67,7 +68,7 @@ export async function lookupUploadRequest(token: string): Promise<UploadRequestL
       id: item.id,
       label: item.label,
       is_required: item.is_required,
-      fulfilled: item.fulfilled_document_id !== null,
+      fulfilled: item.fulfilled_document_id !== null && item.verification_status !== 'reupload_requested',
     }))
 
   return {

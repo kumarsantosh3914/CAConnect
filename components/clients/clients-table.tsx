@@ -33,6 +33,7 @@ export type ClientListRow = {
   id: string
   name: string
   client_type: string
+  kyc_entity_type: string | null
   pan: string | null
   gstin: string | null
   email: string | null
@@ -48,6 +49,7 @@ function toFormValues(row: ClientListRow): ClientInput {
   return {
     name: row.name,
     client_type: row.client_type as ClientInput['client_type'],
+    kyc_entity_type: (row.kyc_entity_type as ClientInput['kyc_entity_type']) ?? 'individual',
     pan: row.pan ?? '',
     gstin: row.gstin ?? '',
     email: row.email ?? '',

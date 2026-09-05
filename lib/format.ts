@@ -129,6 +129,26 @@ const STATUS_LABELS: Record<string, string> = {
   expired: 'Expired',
   reviewed: 'Reviewed',
   sent: 'Sent',
+  submitted: 'Submitted',
+  // KYC item verification statuses
+  uploaded: 'Uploaded',
+  verified: 'Verified',
+  reupload_requested: 'Re-upload needed',
+  // Reconciliation mismatch resolutions
+  unresolved: 'Unresolved',
+  follow_up_supplier: 'Follow up with supplier',
+  accepted_difference: 'Accepted difference',
+  resolved: 'Resolved',
+  // Notice tracker case statuses
+  received: 'Received',
+  response_drafted: 'Response drafted',
+  response_sent: 'Response sent',
+  hearing_scheduled: 'Hearing scheduled',
+  order_received: 'Order received',
+  closed: 'Closed',
+  appeal_filed: 'Appeal filed',
+  appeal_pending: 'Appeal pending',
+  appeal_order: 'Appeal order',
 }
 
 export function statusLabel(status: string): string {

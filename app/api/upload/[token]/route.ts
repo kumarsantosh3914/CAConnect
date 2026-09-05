@@ -93,7 +93,7 @@ export async function POST(request: NextRequest, context: RouteContext<'/api/upl
 
   const { data: uploadRequest, error: lookupError } = await admin
     .from('document_requests')
-    .select('id,firm_id,client_id,status,expires_at')
+    .select('id,firm_id,client_id,request_kind,status,expires_at')
     .eq('token', token)
     .maybeSingle()
 
@@ -105,6 +105,9 @@ export async function POST(request: NextRequest, context: RouteContext<'/api/upl
   }
   if (uploadRequest.status === 'expired') {
     return fail('This upload link is no longer active.', 410)
+  }
+  if (uploadRequest.status === 'completed') {
+    return fail('Your CA has already verified every requested document.', 409)
   }
 
   let form: FormData
@@ -197,7 +200,11 @@ export async function POST(request: NextRequest, context: RouteContext<'/api/upl
   if (itemId) {
     await admin
       .from('document_request_items')
-      .update({ fulfilled_document_id: document.id })
+    .update({
+      fulfilled_document_id: document.id,
+      verification_status: uploadRequest.request_kind === 'kyc' ? 'uploaded' : 'pending',
+      verification_note: null,
+    })
       .eq('id', itemId)
       .eq('request_id', uploadRequest.id)
   }
@@ -206,16 +213,21 @@ export async function POST(request: NextRequest, context: RouteContext<'/api/upl
   // sees at a glance that they can stop chasing.
   const { data: remaining } = await admin
     .from('document_request_items')
-    .select('id')
+    .select('id,fulfilled_document_id,verification_status')
     .eq('request_id', uploadRequest.id)
     .eq('is_required', true)
     .is('fulfilled_document_id', null)
 
-  const isComplete = (remaining?.length ?? 0) === 0
-  if (isComplete && uploadRequest.status !== 'completed') {
+  const isComplete = (remaining ?? []).every(
+    (item) => item.fulfilled_document_id !== null && item.verification_status !== 'reupload_requested'
+  )
+  if (isComplete && (uploadRequest.status as string) !== 'completed') {
     await admin
       .from('document_requests')
-      .update({ status: 'completed', completed_at: new Date().toISOString() })
+      .update({
+        status: uploadRequest.request_kind === 'kyc' ? 'submitted' : 'completed',
+        completed_at: uploadRequest.request_kind === 'kyc' ? null : new Date().toISOString(),
+      })
       .eq('id', uploadRequest.id)
   }
 

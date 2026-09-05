@@ -24,7 +24,7 @@ export async function listClients({
 
   let query = supabase
     .from('clients')
-    .select('id,name,client_type,pan,gstin,email,phone,notes,agm_date,is_audit_case,assigned_to,client_services(service_type)')
+    .select('id,name,client_type,kyc_entity_type,pan,gstin,email,phone,notes,agm_date,is_audit_case,assigned_to,client_services(service_type)')
     .order('name')
 
   if (!includeArchived) query = query.is('archived_at', null)

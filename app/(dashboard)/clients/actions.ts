@@ -6,6 +6,7 @@ import { getApiFirm } from '@/lib/auth'
 import { clientSchema, normalizeClient } from '@/lib/validations/client'
 import { syncClientDeadlines } from '@/lib/deadlines/sync'
 import { clientLimitMessage, planLimits } from '@/lib/plans'
+import { createKycRequest } from '@/lib/kyc/create'
 import type { ClientInput } from '@/lib/validations/client'
 
 export type ActionResult =
@@ -105,6 +106,22 @@ export async function saveClient(
     )
     if (insertError) {
       return { ok: false, error: friendlyDbError(insertError.code, insertError.message) }
+    }
+  }
+
+  // KYC begins with the relationship. Existing clients are not changed when
+  // edited, which preserves historical onboarding records.
+  if (!clientId) {
+    try {
+      await createKycRequest(supabase, {
+        firmId: firm.firmId,
+        userId: user.id,
+        clientId: savedId,
+        entityType: parsed.data.kyc_entity_type,
+      })
+    } catch (error) {
+      // Saving a client must not fail because a secondary checklist failed.
+      console.error('KYC request creation failed for client', savedId, error)
     }
   }
 

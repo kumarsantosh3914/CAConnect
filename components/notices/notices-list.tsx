@@ -98,7 +98,7 @@ export function NoticesList({
                 {formatDateTime(notice.created_at)}
               </TableCell>
               <TableCell>
-                <StatusBadge status={notice.has_draft ? notice.status : 'pending'} />
+                <StatusBadge status={notice.tracker_enabled ? (notice.case_status ?? 'received') : notice.has_draft ? notice.status : 'pending'} />
               </TableCell>
               <TableCell>
                 <Button
