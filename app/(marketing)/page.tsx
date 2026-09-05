@@ -29,9 +29,19 @@ const FEATURES = [
       'Tag a client with ITR, GST, TDS or ROC and their filing dates appear — every GSTR-1 on the 11th, every GSTR-3B on the 20th, already dated, for every month ahead.',
   },
   {
-    term: 'Document collection',
+    term: 'Document collection & KYC',
     detail:
-      'Build a checklist, send one WhatsApp link. Your client uploads from their phone camera. No login, no app, nothing lost in a forwarded thread.',
+      'Build a checklist, send one WhatsApp link. For new clients, a KYC checklist is generated automatically by entity type — your client uploads from their phone, you verify each item.',
+  },
+  {
+    term: 'GST 2A/2B reconciliation',
+    detail:
+      'Upload the purchase register as CSV and the GSTR-2B as JSON. Mismatches surface in seconds — invoice by invoice — with a bulk resolve workflow so nothing slips through before filing.',
+  },
+  {
+    term: 'Notice tracker',
+    detail:
+      'Paste the notice and get a draft reply in 30 seconds. Track the matter through hearings, status changes and orders — from receipt to closure — with a full activity log.',
   },
   {
     term: 'Fee register',
@@ -90,8 +100,8 @@ export default function LandingPage() {
             Run your CA firm without the chaos
           </h1>
           <p className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-pretty text-muted-foreground">
-            Client deadlines, document collection, fee tracking and AI-drafted IT notice replies —
-            in one place, built for firms of one to five people.
+            Client deadlines, document collection, GST reconciliation, fee tracking and
+            AI-drafted IT notice replies — in one place, built for firms of one to five people.
           </p>
           <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:justify-center">
             <Button size="lg" className="h-11 px-7" nativeButton={false} render={<Link href="/signup" />}>

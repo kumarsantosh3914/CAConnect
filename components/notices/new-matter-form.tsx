@@ -30,13 +30,60 @@ export function NewMatterForm({ clients }: { clients: { id: string; name: string
       router.push(`/notices/${result.noticeId}`)
     })
   }
-  return <form action={submit} className="max-w-xl space-y-4">
-    <Field label="Client" htmlFor="client" required><Select items={Object.fromEntries(clients.map((c) => [c.id, c.name]))} value={clientId || null} onValueChange={(v) => setClientId(v ?? '')}><SelectTrigger id="client"><SelectValue placeholder="Choose a client" /></SelectTrigger><SelectContent>{clients.map((client) => <SelectItem key={client.id} value={client.id}>{client.name}</SelectItem>)}</SelectContent></Select></Field>
-    <Field label="Matter title" htmlFor="title" required><Input id="title" name="title" placeholder="FY 2025-26 scrutiny notice" /></Field>
-    <Field label="Notice type" htmlFor="notice_type" required><Select items={Object.fromEntries(TYPES.map((type) => [type, type]))} value={noticeType || null} onValueChange={(v) => setNoticeType(v ?? '')}><SelectTrigger id="notice_type"><SelectValue placeholder="Choose type" /></SelectTrigger><SelectContent>{TYPES.map((type) => <SelectItem key={type} value={type}>{type}</SelectItem>)}</SelectContent></Select></Field>
-    <div className="grid gap-4 sm:grid-cols-2"><Field label="Notice date" htmlFor="notice_date" required><Input id="notice_date" name="notice_date" type="date" /></Field><Field label="Response deadline" htmlFor="response_deadline"><Input id="response_deadline" name="response_deadline" type="date" /></Field></div>
-    <Field label="Amount in dispute (₹)" htmlFor="amount_in_dispute"><Input id="amount_in_dispute" name="amount_in_dispute" inputMode="decimal" placeholder="0.00" /></Field>
-    <Field label="Initial note" htmlFor="notes"><Textarea id="notes" name="notes" rows={3} placeholder="What needs attention?" /></Field>
-    <Button type="submit" disabled={pending}>{pending ? 'Adding…' : 'Add matter'}</Button>
-  </form>
+  return (
+    <form action={submit} className="space-y-5">
+      <Field label="Client" htmlFor="client" required>
+        <Select value={clientId || null} onValueChange={(v) => setClientId(v ?? '')}>
+          <SelectTrigger id="client" className="w-full">
+            <SelectValue placeholder="Choose a client">
+              {clientId ? clients.find((c) => c.id === clientId)?.name : null}
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {clients.map((client) => (
+              <SelectItem key={client.id} value={client.id}>{client.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </Field>
+
+      <Field label="Matter title" htmlFor="title" required>
+        <Input id="title" name="title" placeholder="FY 2025-26 scrutiny notice" />
+      </Field>
+
+      <Field label="Notice type" htmlFor="notice_type" required>
+        <Select value={noticeType || null} onValueChange={(v) => setNoticeType(v ?? '')}>
+          <SelectTrigger id="notice_type" className="w-full">
+            <SelectValue placeholder="Choose type" />
+          </SelectTrigger>
+          <SelectContent>
+            {TYPES.map((type) => (
+              <SelectItem key={type} value={type}>{type}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </Field>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="Notice date" htmlFor="notice_date" required>
+          <Input id="notice_date" name="notice_date" type="date" className="w-full" />
+        </Field>
+        <Field label="Response deadline" htmlFor="response_deadline">
+          <Input id="response_deadline" name="response_deadline" type="date" className="w-full" />
+        </Field>
+      </div>
+
+      <Field label="Amount in dispute (₹)" htmlFor="amount_in_dispute">
+        <Input id="amount_in_dispute" name="amount_in_dispute" inputMode="decimal" placeholder="0.00" />
+      </Field>
+
+      <Field label="Initial note" htmlFor="notes">
+        <Textarea id="notes" name="notes" rows={3} placeholder="What needs attention?" />
+      </Field>
+
+      <Button type="submit" disabled={pending}>
+        {pending ? 'Adding…' : 'Add matter'}
+      </Button>
+    </form>
+  )
 }
