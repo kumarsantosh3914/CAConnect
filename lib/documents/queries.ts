@@ -9,6 +9,7 @@ export type DocumentRequestSummary = {
   /** Needed to re-share an existing link; RLS scopes this to the owning CA. */
   token: string
   title: string
+  request_kind: 'general' | 'kyc'
   status: string
   expires_at: string
   created_at: string
@@ -23,7 +24,7 @@ export async function listDocumentRequests(clientId?: string) {
   let query = supabase
     .from('document_requests')
     .select(
-      'id,client_id,token,title,status,expires_at,created_at,clients(name,phone),document_request_items(id,is_required,fulfilled_document_id),documents(id)'
+      'id,client_id,token,title,request_kind,status,expires_at,created_at,clients(name,phone),document_request_items(id,is_required,fulfilled_document_id,verification_status),documents(id)'
     )
     .order('created_at', { ascending: false })
 
@@ -42,6 +43,7 @@ export async function listDocumentRequests(clientId?: string) {
       client_phone: row.clients?.phone ?? null,
       token: row.token,
       title: row.title,
+      request_kind: row.request_kind,
       // Derive expiry rather than trusting the stored status — a request can
       // lapse without anything running to update the column.
       status:
@@ -100,6 +102,34 @@ export type DocumentRequestItemDetail = {
   label: string
   is_required: boolean
   fulfilled: boolean
+  verification_status: string
+  verification_note: string | null
+}
+
+export type KycRequestDetail = {
+  id: string
+  status: string
+  expires_at: string
+  token: string
+  items: DocumentRequestItemDetail[]
+}
+
+/** Active KYC request for a client (at most one open or submitted at a time). */
+export async function getKycRequest(clientId: string): Promise<KycRequestDetail | null> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('document_requests')
+    .select('id,token,status,expires_at')
+    .eq('client_id', clientId)
+    .eq('request_kind', 'kyc')
+    .in('status', ['open', 'submitted', 'completed'])
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (error) throw new Error(`Could not load KYC request: ${error.message}`)
+  if (!data) return null
+  const items = await getDocumentRequestItems(data.id)
+  return { id: data.id, status: data.status, expires_at: data.expires_at, token: data.token, items }
 }
 
 /** Item-level detail for one request — RLS-scoped, not the public/admin view. */
@@ -109,7 +139,7 @@ export async function getDocumentRequestItems(
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('document_request_items')
-    .select('id,label,is_required,sort_order,fulfilled_document_id')
+    .select('id,label,is_required,sort_order,fulfilled_document_id,verification_status,verification_note')
     .eq('request_id', requestId)
     .order('sort_order')
 
@@ -120,5 +150,7 @@ export async function getDocumentRequestItems(
     label: item.label,
     is_required: item.is_required,
     fulfilled: item.fulfilled_document_id !== null,
+    verification_status: item.verification_status,
+    verification_note: item.verification_note,
   }))
 }

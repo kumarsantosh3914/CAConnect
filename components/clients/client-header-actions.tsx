@@ -14,6 +14,7 @@ type ClientRecord = {
   id: string
   name: string
   client_type: string
+  kyc_entity_type: string | null
   pan: string | null
   gstin: string | null
   email: string | null
@@ -39,6 +40,7 @@ export function ClientHeaderActions({
   const defaultValues: ClientInput = {
     name: client.name,
     client_type: client.client_type as ClientInput['client_type'],
+    kyc_entity_type: (client.kyc_entity_type as ClientInput['kyc_entity_type']) ?? 'individual',
     pan: client.pan ?? '',
     gstin: client.gstin ?? '',
     email: client.email ?? '',

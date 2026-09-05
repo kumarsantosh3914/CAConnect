@@ -31,6 +31,8 @@ type FirmFk = [Rel<'firms', 'firm_id'>]
 type RequestFk = [Rel<'document_requests', 'request_id'>]
 type ProfileFk = [Rel<'ca_profiles', 'profile_id'>]
 type PackageFk = [Rel<'ca_packages', 'package_id'>]
+type NoticeFk = [Rel<'notices', 'notice_id'>]
+type ReconciliationRunFk = [Rel<'reconciliation_runs', 'run_id'>]
 
 export type ServiceType =
   | 'itr'
@@ -44,9 +46,23 @@ export type ServiceType =
 export type ClientType = 'individual' | 'company' | 'firm' | 'llp' | 'huf' | 'trust'
 export type DeadlineStatus = 'pending' | 'in_progress' | 'filed' | 'done'
 export type FeeStatus = 'draft' | 'invoiced' | 'paid'
-export type DocumentRequestStatus = 'open' | 'completed' | 'expired'
+export type DocumentRequestStatus = 'open' | 'submitted' | 'completed' | 'expired'
 export type DocumentUploader = 'ca' | 'client'
 export type NoticeStatus = 'draft' | 'reviewed' | 'sent'
+export type KycItemStatus = 'pending' | 'uploaded' | 'verified' | 'reupload_requested'
+export type ReconciliationStatus = 'in_progress' | 'done'
+export type ReconciliationMatchType = 'purchase_only' | 'gstr_only' | 'amount_mismatch'
+export type ReconciliationResolution = 'unresolved' | 'follow_up_supplier' | 'accepted_difference' | 'resolved'
+export type NoticeCaseStatus =
+  | 'received'
+  | 'response_drafted'
+  | 'response_sent'
+  | 'hearing_scheduled'
+  | 'order_received'
+  | 'closed'
+  | 'appeal_filed'
+  | 'appeal_pending'
+  | 'appeal_order'
 export type ClientEmailTopic = 'deadline_reminder' | 'document_followup' | 'fee_reminder' | 'custom'
 export type NoticeSource = 'paste' | 'pdf'
 export type PlanTier = 'starter' | 'solo' | 'pro' | 'team'
@@ -103,6 +119,7 @@ export type ClientRow = {
   assigned_to: string | null
   name: string
   client_type: ClientType
+  kyc_entity_type: string | null
   pan: string | null
   gstin: string | null
   email: string | null
@@ -162,6 +179,7 @@ export type DocumentRequestRow = {
   client_id: string
   token: string
   title: string
+  request_kind: 'general' | 'kyc'
   message: string | null
   status: DocumentRequestStatus
   expires_at: string
@@ -193,6 +211,8 @@ export type DocumentRequestItemRow = {
   is_required: boolean
   sort_order: number
   fulfilled_document_id: string | null
+  verification_status: KycItemStatus
+  verification_note: string | null
   created_at: string
 }
 
@@ -203,6 +223,7 @@ export type DocumentRow = {
   client_id: string
   request_id: string | null
   item_id: string | null
+  notice_id: string | null
   storage_path: string
   file_name: string
   mime_type: string
@@ -235,13 +256,76 @@ export type NoticeRow = {
   title: string
   notice_type: string | null
   source: NoticeSource
-  notice_text: string
+  notice_text: string | null
   source_file_path: string | null
   draft_response: string | null
   edited_response: string | null
   model: string | null
   tokens_used: number | null
   status: NoticeStatus
+  tracker_enabled: boolean
+  case_status: NoticeCaseStatus | null
+  notice_date: string | null
+  response_deadline: string | null
+  amount_in_dispute_paise: number | null
+  assigned_to: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type NoticeHearingRow = {
+  id: string
+  firm_id: string
+  notice_id: string
+  hearing_date: string
+  notes: string | null
+  created_by: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type NoticeEventRow = {
+  id: string
+  firm_id: string
+  notice_id: string
+  event_type: 'note' | 'status_change'
+  body: string | null
+  from_status: NoticeCaseStatus | null
+  to_status: NoticeCaseStatus | null
+  created_by: string | null
+  created_at: string
+}
+
+export type ReconciliationRunRow = {
+  id: string
+  firm_id: string
+  client_id: string
+  period_month: string
+  status: ReconciliationStatus
+  purchase_file_path: string
+  gstr_file_path: string
+  purchase_total: number
+  gstr_total: number
+  mismatch_total: number
+  created_by: string | null
+  completed_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type ReconciliationMismatchRow = {
+  id: string
+  firm_id: string
+  run_id: string
+  match_type: ReconciliationMatchType
+  supplier_gstin: string
+  invoice_number: string
+  invoice_date: string | null
+  purchase_amount_paise: number | null
+  gstr_amount_paise: number | null
+  difference_paise: number
+  resolution: ReconciliationResolution
+  resolution_note: string | null
   created_at: string
   updated_at: string
 }
@@ -468,7 +552,7 @@ export type Database = {
           'firm_id' | 'client_id' | 'storage_path' | 'file_name' | 'mime_type' | 'size_bytes'
         >
         Update: Partial<DocumentRow>
-        Relationships: [...ClientFk, ...RequestFk]
+        Relationships: [...ClientFk, ...RequestFk, ...NoticeFk]
       }
       fees: {
         Row: FeeRow
@@ -481,6 +565,36 @@ export type Database = {
         Insert: Insertable<NoticeRow, 'firm_id' | 'title' | 'notice_text'>
         Update: Partial<NoticeRow>
         Relationships: ClientFk
+      }
+      notice_hearings: {
+        Row: NoticeHearingRow
+        Insert: Insertable<NoticeHearingRow, 'firm_id' | 'notice_id' | 'hearing_date'>
+        Update: Partial<NoticeHearingRow>
+        Relationships: [...FirmFk, ...NoticeFk]
+      }
+      notice_events: {
+        Row: NoticeEventRow
+        Insert: Insertable<NoticeEventRow, 'firm_id' | 'notice_id' | 'event_type'>
+        Update: Partial<NoticeEventRow>
+        Relationships: [...FirmFk, ...NoticeFk]
+      }
+      reconciliation_runs: {
+        Row: ReconciliationRunRow
+        Insert: Insertable<
+          ReconciliationRunRow,
+          'firm_id' | 'client_id' | 'period_month' | 'purchase_file_path' | 'gstr_file_path'
+        >
+        Update: Partial<ReconciliationRunRow>
+        Relationships: [...FirmFk, ...ClientFk]
+      }
+      reconciliation_mismatches: {
+        Row: ReconciliationMismatchRow
+        Insert: Insertable<
+          ReconciliationMismatchRow,
+          'firm_id' | 'run_id' | 'match_type' | 'supplier_gstin' | 'invoice_number' | 'difference_paise'
+        >
+        Update: Partial<ReconciliationMismatchRow>
+        Relationships: [...FirmFk, ...ReconciliationRunFk]
       }
       client_emails: {
         Row: ClientEmailRow
@@ -580,6 +694,11 @@ export type Database = {
       document_request_status: DocumentRequestStatus
       document_uploader: DocumentUploader
       notice_status: NoticeStatus
+      kyc_item_status: KycItemStatus
+      reconciliation_status: ReconciliationStatus
+      reconciliation_match_type: ReconciliationMatchType
+      reconciliation_resolution: ReconciliationResolution
+      notice_case_status: NoticeCaseStatus
       notice_source: NoticeSource
       client_email_topic: ClientEmailTopic
       plan_tier: PlanTier

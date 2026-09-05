@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import {
   CalendarClock,
   FileText,
+  GitCompare,
   LayoutDashboard,
   Mail,
   Receipt,
@@ -21,7 +22,8 @@ const NAV_ITEMS = [
   { href: '/deadlines', label: 'Deadlines', icon: CalendarClock },
   { href: '/documents', label: 'Documents', icon: FileText },
   { href: '/fees', label: 'Fees', icon: Receipt },
-  { href: '/notices', label: 'IT Notices', icon: Scale },
+  { href: '/notices', label: 'Notice Tracker', icon: Scale },
+  { href: '/reconciliations', label: 'GST Reconciliation', icon: GitCompare },
   { href: '/client-emails', label: 'Client Emails', icon: Mail },
   { href: '/team', label: 'Team', icon: UsersRound },
   { href: '/marketplace', label: 'Marketplace', icon: Store },

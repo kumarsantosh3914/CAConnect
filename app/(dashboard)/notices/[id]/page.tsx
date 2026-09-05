@@ -58,6 +58,10 @@ export default async function NoticePage(props: PageProps<'/notices/[id]'>) {
         clientId={notice.client_id}
         draftResponse={notice.draft_response}
         editedResponse={notice.edited_response}
+        trackerEnabled={notice.tracker_enabled}
+        caseStatus={notice.case_status}
+        hearings={notice.hearings}
+        events={notice.events}
       />
     </>
   )

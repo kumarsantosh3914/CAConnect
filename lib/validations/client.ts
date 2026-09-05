@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { GSTIN_REGEX, PAN_REGEX } from './india'
+import { KYC_ENTITY_TYPES } from '@/lib/kyc/checklists'
 
 export const SERVICE_TYPES = [
   'itr',
@@ -29,6 +30,7 @@ const optional = <T extends z.ZodType<string>>(schema: T) =>
 export const clientSchema = z.object({
   name: z.string().trim().min(1, 'Client name is required').max(120, 'Client name is too long'),
   client_type: z.enum(CLIENT_TYPES),
+  kyc_entity_type: z.enum(KYC_ENTITY_TYPES),
   pan: optional(z.string().regex(PAN_REGEX, 'PAN should look like ABCDE1234F')),
   gstin: optional(
     z.string().regex(GSTIN_REGEX, 'GSTIN should be 15 characters, like 27ABCDE1234F1Z5')
@@ -58,6 +60,7 @@ export function normalizeClient(input: ClientInput) {
   return {
     name: input.name.trim(),
     client_type: input.client_type,
+    kyc_entity_type: input.kyc_entity_type,
     pan: upper(input.pan),
     gstin: upper(input.gstin),
     email: blank(input.email),
@@ -72,6 +75,7 @@ export function normalizeClient(input: ClientInput) {
 export const clientDefaults: ClientInput = {
   name: '',
   client_type: 'individual',
+  kyc_entity_type: 'individual',
   pan: '',
   gstin: '',
   email: '',

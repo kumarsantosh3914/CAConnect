@@ -9,11 +9,13 @@ import { listFees } from '@/lib/fees/queries'
 import { listNotices } from '@/lib/notices/queries'
 import { listClientEmails } from '@/lib/client-emails/queries'
 import { getClientPortal } from '@/lib/portal/queries'
+import { getKycRequest } from '@/lib/documents/queries'
 import { requestOrigin } from '@/lib/url'
 import { planLimits, portalUpgradeMessage } from '@/lib/plans'
 import { listTeamMembers } from '@/lib/team/queries'
 import { toAssignable } from '@/lib/team/assignable'
 import { ClientEmailList } from '@/components/client-emails/email-list'
+import { KycChecklist } from '@/components/documents/kyc-checklist'
 import { FeesView } from '@/components/fees/fees-view'
 import { NoticesList } from '@/components/notices/notices-list'
 import { requireFirm } from '@/lib/auth'
@@ -59,7 +61,7 @@ export default async function ClientProfilePage(props: PageProps<'/clients/[id]'
   if (!client) notFound()
 
   const { user, firm } = await requireFirm()
-  const [deadlines, requests, documents, fees, notices, emails, teamMembers, portal, origin] =
+  const [deadlines, requests, documents, fees, notices, emails, teamMembers, portal, kyc, origin] =
     await Promise.all([
       listDeadlines({ clientId: id, includeCompleted: true }),
       listDocumentRequests(id),
@@ -69,6 +71,7 @@ export default async function ClientProfilePage(props: PageProps<'/clients/[id]'
       listClientEmails(id),
       listTeamMembers(firm.firmId),
       getClientPortal(id),
+      getKycRequest(id),
       requestOrigin(),
     ])
   const members = toAssignable(teamMembers, user.id)
@@ -162,10 +165,11 @@ export default async function ClientProfilePage(props: PageProps<'/clients/[id]'
         </Card>
 
         <Tabs defaultValue="deadlines" className="min-w-0">
-          {/* Six tabs do not fit a 390px screen, so let the strip scroll. */}
+          {/* Seven tabs do not fit a 390px screen, so let the strip scroll. */}
           <TabsList className="max-w-full overflow-x-auto">
             <TabsTrigger value="deadlines">Deadlines</TabsTrigger>
             <TabsTrigger value="documents">Documents</TabsTrigger>
+            <TabsTrigger value="kyc">KYC</TabsTrigger>
             <TabsTrigger value="fees">Fees</TabsTrigger>
             <TabsTrigger value="notices">Notices</TabsTrigger>
             <TabsTrigger value="emails">Emails</TabsTrigger>
@@ -196,6 +200,9 @@ export default async function ClientProfilePage(props: PageProps<'/clients/[id]'
               firmName={firm.name}
             />
             <DocumentList documents={documents} showClient={false} />
+          </TabsContent>
+          <TabsContent value="kyc">
+            <KycChecklist clientId={client.id} kyc={kyc} />
           </TabsContent>
           <TabsContent value="fees" className="space-y-4">
             <FeesView

@@ -9,6 +9,7 @@ import type { ClientInput } from '@/lib/validations/client'
 import { isGstinChecksumValid, panFromGstin, stateFromGstin } from '@/lib/validations/india'
 import { saveClient } from '@/app/(dashboard)/clients/actions'
 import { clientTypeLabel, serviceLabel } from '@/lib/format'
+import { KYC_ENTITY_LABELS, KYC_ENTITY_TYPES } from '@/lib/kyc/checklists'
 import {
   Dialog,
   DialogContent,
@@ -39,6 +40,7 @@ export type ClientFormValues = ClientInput
 const CLIENT_TYPE_ITEMS: Record<string, string> = Object.fromEntries(
   CLIENT_TYPES.map((type) => [type, clientTypeLabel(type)])
 )
+const KYC_ENTITY_ITEMS: Record<string, string> = KYC_ENTITY_LABELS
 
 export function ClientFormDialog({
   open,
@@ -155,6 +157,21 @@ export function ClientFormDialog({
                         {clientTypeLabel(type)}
                       </SelectItem>
                     ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+          </Field>
+
+          <Field label="KYC entity type" htmlFor="kyc_entity_type" required error={errors.kyc_entity_type?.message} hint="Creates the right KYC checklist after the client is added">
+            <Controller
+              control={control}
+              name="kyc_entity_type"
+              render={({ field }) => (
+                <Select items={KYC_ENTITY_ITEMS} value={field.value} onValueChange={field.onChange}>
+                  <SelectTrigger id="kyc_entity_type" className="w-full"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {KYC_ENTITY_TYPES.map((type) => <SelectItem key={type} value={type}>{KYC_ENTITY_LABELS[type]}</SelectItem>)}
                   </SelectContent>
                 </Select>
               )}
