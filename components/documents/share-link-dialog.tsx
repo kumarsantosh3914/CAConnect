@@ -89,7 +89,7 @@ export function ShareLinkDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="min-w-0 space-y-4">
           <Button
             className="w-full"
             nativeButton={false}
@@ -109,7 +109,13 @@ export function ShareLinkDialog({
           <div className="space-y-2">
             <p className="text-sm font-medium">Or copy the link</p>
             <div className="flex gap-2">
-              <Input readOnly value={url} className="font-mono text-xs" aria-label="Share link" />
+              {/* min-w-0 so the field can shrink instead of shoving the copy button out. */}
+              <Input
+                readOnly
+                value={url}
+                className="min-w-0 font-mono text-xs"
+                aria-label="Share link"
+              />
               <Button variant="outline" size="icon" onClick={() => copy(url, 'Link')}>
                 {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
                 <span className="sr-only">Copy link</span>
@@ -119,7 +125,15 @@ export function ShareLinkDialog({
 
           <details className="rounded-md border p-3 text-sm">
             <summary className="cursor-pointer font-medium">Preview the message</summary>
-            <pre className="mt-2 whitespace-pre-wrap font-sans text-xs text-muted-foreground">
+            {/*
+              overflow-wrap:anywhere, not just whitespace-pre-wrap. The message
+              embeds a bare upload URL with no spaces in it — 75-odd unbreakable
+              characters — and pre-wrap only breaks at whitespace. That set a
+              min-content width wider than the dialog and pushed every control
+              out past the panel's edge. `anywhere` is the variant that also
+              feeds min-content sizing, so the panel can actually stay put.
+            */}
+            <pre className="mt-2 [overflow-wrap:anywhere] whitespace-pre-wrap font-sans text-xs text-muted-foreground">
               {message}
             </pre>
           </details>

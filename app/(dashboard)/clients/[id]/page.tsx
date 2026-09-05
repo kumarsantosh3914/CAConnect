@@ -38,8 +38,14 @@ export async function generateMetadata(props: PageProps<'/clients/[id]'>): Promi
 function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex justify-between gap-4 py-2 text-sm">
-      <dt className="text-muted-foreground">{label}</dt>
-      <dd className="text-right font-medium">{value || '—'}</dd>
+      {/*
+        The label holds its width; the value gives way. A long GSTIN or email
+        has no spaces to wrap at, so without min-w-0 and a break the value sets
+        a min-content width the card cannot honour and the whole page scrolls
+        sideways on a phone.
+      */}
+      <dt className="shrink-0 text-muted-foreground">{label}</dt>
+      <dd className="min-w-0 [overflow-wrap:anywhere] text-right font-medium">{value || '—'}</dd>
     </div>
   )
 }
@@ -94,8 +100,14 @@ export default async function ClientProfilePage(props: PageProps<'/clients/[id]'
         </div>
       </div>
 
+      {/*
+        min-w-0 on both grid children. A grid item defaults to min-width:auto,
+        so it refuses to shrink below its content's min-content width — on a
+        phone the details card sat 36px wider than its own track and scrolled
+        the whole page sideways.
+      */}
       <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
-        <Card className="h-fit">
+        <Card className="h-fit min-w-0">
           <CardHeader>
             <CardTitle className="text-base">Details</CardTitle>
           </CardHeader>
@@ -149,8 +161,9 @@ export default async function ClientProfilePage(props: PageProps<'/clients/[id]'
           </CardContent>
         </Card>
 
-        <Tabs defaultValue="deadlines">
-          <TabsList>
+        <Tabs defaultValue="deadlines" className="min-w-0">
+          {/* Six tabs do not fit a 390px screen, so let the strip scroll. */}
+          <TabsList className="max-w-full overflow-x-auto">
             <TabsTrigger value="deadlines">Deadlines</TabsTrigger>
             <TabsTrigger value="documents">Documents</TabsTrigger>
             <TabsTrigger value="fees">Fees</TabsTrigger>
