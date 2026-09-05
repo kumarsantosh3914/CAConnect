@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { Menu, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { ThemeToggle } from '@/components/layout/theme-toggle'
 
 /**
  * The public header.
@@ -40,6 +41,7 @@ export function MarketingNav() {
             {link.label}
           </Button>
         ))}
+        <ThemeToggle />
         <Button variant="ghost" size="sm" nativeButton={false} render={<Link href="/login" />}>
           Log in
         </Button>
@@ -50,6 +52,7 @@ export function MarketingNav() {
 
       {/* Mobile: the primary action stays visible; the rest collapses. */}
       <div className="flex items-center gap-1 sm:hidden">
+        <ThemeToggle />
         <Button size="sm" nativeButton={false} render={<Link href="/signup" />}>
           Start free
         </Button>
