@@ -3,6 +3,7 @@ import { requireUser, getFirmContext } from '@/lib/auth'
 import { SidebarNav } from '@/components/layout/sidebar-nav'
 import { UserMenu } from '@/components/layout/user-menu'
 import { Logo } from '@/components/brand/logo'
+import { ThemeToggle } from '@/components/layout/theme-toggle'
 
 export default async function DashboardLayout({ children }: LayoutProps<'/'>) {
   // proxy.ts already redirected signed-out visitors, but that is an optimistic
@@ -27,7 +28,8 @@ export default async function DashboardLayout({ children }: LayoutProps<'/'>) {
           <Link href="/dashboard" className="md:hidden">
             <Logo />
           </Link>
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-1">
+            <ThemeToggle />
             <UserMenu email={user.email ?? ''} firmName={firm?.name ?? null} />
           </div>
         </header>
